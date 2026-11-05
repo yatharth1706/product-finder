@@ -106,11 +106,6 @@ class SearchRequest(BaseModel):
     amazon_url: str = Field(max_length=2048)
 
 
-class SearchAccepted(BaseModel):
-    search_id: str
-    status: JobStatus
-
-
 class SearchJob(BaseModel):
     search_id: str
     status: JobStatus

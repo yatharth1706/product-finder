@@ -3,7 +3,10 @@
 Paste an Amazon product link and see whether the same product is in stock,
 out of stock or not listed on Flipkart, Croma, Reliance Digital and Myntra.
 
-Croma blocks requests from servers, so it reports "could not check"; see
+**Live:** https://product-finder-lyart.vercel.app (API: https://product-finder-api.vercel.app)
+
+Some stores refuse requests from cloud servers, so the live site reports
+"could not check" for Croma and Myntra. Run it locally to see every store; see
 [docs/access-check.md](docs/access-check.md).
 
 **How matching works, explained simply:** [docs/how-matching-works.md](docs/how-matching-works.md)
@@ -49,6 +52,26 @@ curl -X POST localhost:8000/api/v1/search \
 
 curl localhost:8000/api/v1/search/<search_id>
 # -> {"status": "completed", "source_product": {...}, "results": [...]}
+```
+
+## Deployment
+
+Both apps are on Vercel, as separate projects:
+
+- `frontend/` builds with `NEXT_PUBLIC_API_URL=https://product-finder-api.vercel.app`.
+- `backend/` runs FastAPI as a Vercel Function in Mumbai (`bom1`, see
+  `backend/vercel.json`) with `SEARCH_MODE=inline` and `CORS_ORIGINS` set to the
+  frontend URL.
+
+`SEARCH_MODE=inline` makes `POST /api/v1/search` wait and return the finished
+search (about 5-10 seconds). Searches live in memory, and on serverless the next
+request may reach a different instance, so polling would not be reliable there.
+Locally and in Docker the default `background` mode returns at once and the
+frontend polls `GET /api/v1/search/{id}`. The frontend handles both.
+
+```bash
+cd backend && vercel deploy --prod
+cd frontend && vercel deploy --prod
 ```
 
 ## Tests and lint

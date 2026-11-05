@@ -11,6 +11,18 @@ Re-run from any deploy host with `cd backend && uv run python scripts/access_che
 | Croma | Blocked | Akamai returns 403 for httpx and for headless Chromium. A real Chrome browser got through once and was blocked on the next request. |
 | Reliance Digital | OK | Search pages embed the listing data as JSON (`window.__INITIAL_STATE__`): brand, colour, storage, `sellable` flag. `sellable` is false exactly when stock quantity is 0. 12 listings per page (`page_no=N`). |
 
+## From Vercel (Mumbai, `bom1`)
+
+Checked on 2026-11-05 against the deployed backend.
+
+| Site | Result |
+|---|---|
+| Amazon.in | OK |
+| Flipkart | OK |
+| Reliance Digital | OK |
+| Croma | Refused (HTTP 400) |
+| Myntra | Refused: returns a fake "Site Maintenance" page (HTTP 200) while the site works from a home connection. Reported as `blocked`. |
+
 ## Decisions
 
 - Amazon, Flipkart, Myntra: plain httpx + BeautifulSoup / JSON. No Playwright needed.

@@ -26,7 +26,17 @@ class MyntraAdapter(MarketplaceAdapter):
         try:
             data = response.json()
         except ValueError as exc:
-            raise FetchError(FailureReason.PARSE_ERROR, "Myntra search was not JSON") from exc
+            snippet = " ".join(response.text[:200].split())
+            # Myntra answers refused clients (e.g. cloud servers) with a fake
+            # "Site Maintenance" page while the site works fine elsewhere.
+            reason = (
+                FailureReason.BLOCKED
+                if "maintenance" in snippet.lower()
+                else FailureReason.PARSE_ERROR
+            )
+            raise FetchError(
+                reason, f"Myntra search was not JSON (HTTP {response.status_code}): {snippet}"
+            ) from exc
         return parse_search_results(data)
 
 

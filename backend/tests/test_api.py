@@ -41,6 +41,17 @@ def test_search_lifecycle(client: TestClient) -> None:
     assert job["results"][0]["status"] == "out_of_stock"
 
 
+def test_inline_mode_returns_the_finished_search(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.api.settings.search_mode", "inline")
+    response = client.post("/api/v1/search", json={"amazon_url": PRODUCT.url})
+    assert response.status_code == 200
+    job = response.json()
+    assert job["status"] == "completed"
+    assert job["results"][0]["status"] == "out_of_stock"
+
+
 def test_rejects_non_amazon_url(client: TestClient) -> None:
     response = client.post("/api/v1/search", json={"amazon_url": "https://example.com/dp/X"})
     assert response.status_code == 400

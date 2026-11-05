@@ -1,4 +1,4 @@
-import type { JobStatus, SearchJob } from "./types";
+import type { SearchJob } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -22,8 +22,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+/** Returns the job: still running when the backend searches in the background,
+ * already finished when it searches inline (serverless deployments). */
 export function createSearch(amazonUrl: string) {
-  return request<{ search_id: string; status: JobStatus }>("/api/v1/search", {
+  return request<SearchJob>("/api/v1/search", {
     method: "POST",
     body: JSON.stringify({ amazon_url: amazonUrl }),
   });

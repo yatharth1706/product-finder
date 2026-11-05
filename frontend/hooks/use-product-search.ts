@@ -13,12 +13,17 @@ export function useProductSearch() {
   const [submitting, setSubmitting] = useState(false);
 
   const start = useCallback(async (amazonUrl: string) => {
+    setSearchId(null);
     setSubmitting(true);
     setError(null);
     setJob(null);
     try {
-      const { search_id } = await createSearch(amazonUrl);
-      setSearchId(search_id);
+      const created = await createSearch(amazonUrl);
+      if (isFinished(created)) {
+        setJob(created);
+      } else {
+        setSearchId(created.search_id);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
@@ -36,7 +41,7 @@ export function useProductSearch() {
         const latest = await getSearch(searchId);
         if (stopped) return;
         setJob(latest);
-        if (latest.status === "completed" || latest.status === "failed") return;
+        if (isFinished(latest)) return;
       } catch (err) {
         if (stopped) return;
         setError(err instanceof ApiError ? err.message : "Lost contact with the server");
@@ -52,8 +57,11 @@ export function useProductSearch() {
     };
   }, [searchId]);
 
-  const running =
-    submitting || (searchId !== null && !error && job?.status !== "completed" && job?.status !== "failed");
+  const running = submitting || (searchId !== null && !error && !(job && isFinished(job)));
 
   return { job, error, running, start };
+}
+
+function isFinished(job: SearchJob) {
+  return job.status === "completed" || job.status === "failed";
 }
