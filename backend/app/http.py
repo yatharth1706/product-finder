@@ -20,7 +20,9 @@ def host_allowed(host: str, allowed_hosts: set[str]) -> bool:
     return any(host == allowed or host.endswith("." + allowed) for allowed in allowed_hosts)
 
 
-def make_client(allowed_hosts: set[str]) -> httpx.AsyncClient:
+def make_client(
+    allowed_hosts: set[str], transport: httpx.AsyncBaseTransport | None = None
+) -> httpx.AsyncClient:
     """An HTTP client that refuses to contact any host outside `allowed_hosts`.
 
     The check runs on every request, including redirects, so a redirect cannot
@@ -37,6 +39,7 @@ def make_client(allowed_hosts: set[str]) -> httpx.AsyncClient:
         max_redirects=5,
         timeout=settings.request_timeout_seconds,
         event_hooks={"request": [check_host]},
+        transport=transport,
     )
 
 

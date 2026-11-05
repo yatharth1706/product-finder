@@ -85,3 +85,16 @@ def test_rank_keeps_only_exact_matches_in_order() -> None:
     ]
     ranked = rank_matches(SOURCE, listings)
     assert [c.title for c, _ in ranked] == [listings[1].title, listings[2].title]
+
+
+def test_brand_field_written_differently() -> None:
+    oneplus = SOURCE.model_copy(update={"brand": "OnePlus", "model": "Nord CE6"})
+    listing = candidate("OnePlus Nord CE6 5G 256 GB, 12 GB RAM, Pitch Black, Mobile Phone")
+    listing.brand = "One Plus"
+    assert match(oneplus, listing).matched
+
+
+def test_lite_variant_is_rejected() -> None:
+    oneplus = SOURCE.model_copy(update={"brand": "OnePlus", "model": "Nord CE6"})
+    listing = candidate("OnePlus Nord CE6 Lite 5G 256 GB, 12 GB RAM, Hyper Black, Mobile Phone")
+    assert not match(oneplus, listing).matched

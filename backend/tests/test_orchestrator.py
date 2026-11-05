@@ -86,7 +86,8 @@ async def fake_extract(url: str):  # type: ignore[no-untyped-def]
     return PRODUCT
 
 
-async def test_run_completes_job() -> None:
+async def test_run_completes_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(CATEGORY_PLATFORMS, Category.SMARTPHONE, [Platform.FLIPKART])
     store = JobStore()
     job = store.create(PRODUCT.url)
     adapter = FakeAdapter(candidates=[listing(availability=Availability.OUT_OF_STOCK)])

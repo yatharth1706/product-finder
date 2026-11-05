@@ -6,13 +6,15 @@ from fastapi.testclient import TestClient
 from app.api import get_job_store, get_orchestrator
 from app.job_store import JobStore
 from app.main import app
-from app.orchestrator import SearchOrchestrator
-from app.schemas import Availability, Platform
+from app.orchestrator import CATEGORY_PLATFORMS, SearchOrchestrator
+from app.schemas import Availability, Category, Platform
 from tests.fakes import PRODUCT, FakeAdapter, listing
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    monkeypatch.setitem(CATEGORY_PLATFORMS, Category.SMARTPHONE, [Platform.FLIPKART])
+
     async def fake_extract(url: str):  # type: ignore[no-untyped-def]
         return PRODUCT
 

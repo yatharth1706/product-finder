@@ -24,7 +24,7 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 CATEGORY_PLATFORMS: dict[Category, list[Platform]] = {
-    Category.SMARTPHONE: [Platform.FLIPKART],
+    Category.SMARTPHONE: [Platform.FLIPKART, Platform.CROMA, Platform.RELIANCE_DIGITAL],
 }
 
 

@@ -3,6 +3,7 @@ import type { FailureReason, Platform } from "./types";
 export const PLATFORM_NAMES: Record<Platform, string> = {
   flipkart: "Flipkart",
   croma: "Croma",
+  reliance_digital: "Reliance Digital",
   myntra: "Myntra",
 };
 

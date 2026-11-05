@@ -1,7 +1,10 @@
 # Product Finder
 
 Paste an Amazon product link and see whether the same product is in stock,
-out of stock or not listed on Flipkart, Croma and Myntra.
+out of stock or not listed on Flipkart, Croma, Reliance Digital and Myntra.
+
+Croma blocks requests from servers, so it reports "could not check"; see
+[docs/access-check.md](docs/access-check.md).
 
 See [SPEC.md](SPEC.md) for scope and design, and
 [docs/access-check.md](docs/access-check.md) for what each marketplace allows.

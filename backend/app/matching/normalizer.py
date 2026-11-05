@@ -30,7 +30,8 @@ def normalize_text(text: str) -> str:
 
 
 def normalize_brand(brand: str) -> str:
-    brand = normalize_text(brand)
+    """Spaces are dropped so 'One Plus' and 'OnePlus' compare equal."""
+    brand = normalize_text(brand).replace(" ", "")
     return BRAND_ALIASES.get(brand, brand)
 
 
@@ -64,7 +65,8 @@ def model_from_title(title: str, brand: str) -> str:
     bracket, separator or 'with': 'REDMI Turbo 5 (8GB + 256GB) | ...' -> 'Turbo 5'.
     """
     title = MODEL_BRACKET.sub(r" \1 ", title)
-    head = re.split(r"[(|,\[]| with | - ", title, maxsplit=1)[0]
+    # Cut at the first bracket, separator, "with" or size ("Nord CE6 5G 256 GB, ...").
+    head = re.split(r"[(|,\[]| with | - |\b\d+\s*(?:GB|TB)\b", title, maxsplit=1, flags=re.I)[0]
     words = head.split()
     brand_words = normalize_text(brand).split()
     if [normalize_text(w) for w in words[: len(brand_words)]] == brand_words:

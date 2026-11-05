@@ -8,12 +8,15 @@ or not listed.
 
 | Category | Search on | Must match (besides brand + model) |
 |---|---|---|
-| Smartphones | Flipkart, Croma | RAM, storage |
-| Televisions | Flipkart, Croma | Screen size |
+| Smartphones | Flipkart, Croma, Reliance Digital | RAM, storage |
+| Televisions | Flipkart, Croma, Reliance Digital | Screen size |
 | Sneakers | Flipkart, Myntra | Colour |
 | T-shirts, polos, jerseys | Flipkart, Myntra | Colour |
 
 Any other Amazon category is rejected as unsupported.
+
+Reliance Digital is an addition to the assignment's list: Croma blocks server
+requests, so it gives the electronics categories a second store that works.
 
 Out of scope: auth, databases, queues, price history, LLM-based matching.
 
@@ -69,7 +72,7 @@ backend/app/
   extractors/amazon.py    URL validation, fetch, parse, category
   marketplaces/
     base.py               MarketplaceAdapter: search(), check_availability()
-    flipkart.py  croma.py  myntra.py
+    flipkart.py  croma.py  reliance_digital.py  myntra.py
   matching/
     normalizer.py         units, colours, brands
     matcher.py            per-category rules, score, reasons
@@ -90,7 +93,7 @@ frontend/                 Next.js page: input, source product, result cards
 
 1. Access check + project skeleton.
 2. Smartphones end to end: Amazon -> Flipkart -> matching -> API -> basic UI.
-3. Croma, concurrent searches, partial failures.
+3. Croma (reports blocked) + Reliance Digital, concurrent searches, partial failures.
 4. Televisions, then Myntra with sneakers and clothing.
 5. Deploy, UI polish.
 6. "Explain it to a 5-year-old" matching document.

@@ -5,7 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from app.errors import InvalidUrlError
 from app.extractors.amazon import validate_amazon_url
 from app.job_store import JobStore
+from app.marketplaces.croma import CromaAdapter
 from app.marketplaces.flipkart import FlipkartAdapter
+from app.marketplaces.reliance_digital import RelianceDigitalAdapter
 from app.orchestrator import SearchOrchestrator
 from app.schemas import Platform, SearchAccepted, SearchJob, SearchRequest
 
@@ -14,7 +16,11 @@ router = APIRouter(prefix="/api/v1")
 job_store = JobStore()
 orchestrator = SearchOrchestrator(
     store=job_store,
-    adapters={Platform.FLIPKART: FlipkartAdapter()},
+    adapters={
+        Platform.FLIPKART: FlipkartAdapter(),
+        Platform.CROMA: CromaAdapter(),
+        Platform.RELIANCE_DIGITAL: RelianceDigitalAdapter(),
+    },
 )
 
 

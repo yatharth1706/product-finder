@@ -26,6 +26,7 @@ def test_normalize_size(text: str, expected: str | None) -> None:
 def test_brand_aliases() -> None:
     assert normalize_brand("REDMI") == normalize_brand("Xiaomi")
     assert normalize_brand("Samsung") == "samsung"
+    assert normalize_brand("One Plus") == normalize_brand("OnePlus")
 
 
 @pytest.mark.parametrize(
@@ -41,6 +42,7 @@ def test_brand_aliases() -> None:
         ("Samsung S25 Ultra 5G (Titanium Gray, 256 GB)", "Samsung", "S25 Ultra"),
         ("Nothing Phone (3a) 5G (Blue, 8GB, 128GB)", "Nothing", "Phone 3a"),
         ("Apple iPhone 15 (128 GB) - Black", "Apple", "iPhone 15"),
+        ("OnePlus Nord CE6 5G 256 GB, 8 GB RAM, Pitch Black, Mobile Phone", "OnePlus", "Nord CE6"),
     ],
 )
 def test_model_from_title(title: str, brand: str, model: str) -> None:
