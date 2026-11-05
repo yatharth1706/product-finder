@@ -6,6 +6,8 @@ out of stock or not listed on Flipkart, Croma, Reliance Digital and Myntra.
 Croma blocks requests from servers, so it reports "could not check"; see
 [docs/access-check.md](docs/access-check.md).
 
+**How matching works, explained simply:** [docs/how-matching-works.md](docs/how-matching-works.md)
+
 See [SPEC.md](SPEC.md) for scope and design, and
 [docs/access-check.md](docs/access-check.md) for what each marketplace allows.
 
