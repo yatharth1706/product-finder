@@ -36,7 +36,8 @@ POST /api/v1/search {amazon_url}  ->  202 {search_id}
     1. Amazon extractor: fetch page, read title, breadcrumb (category), spec tables
     2. Normalize attributes (units, colours, brand names)
     3. For each marketplace of the category, concurrently:
-         search -> top N candidates -> fetch details -> match -> availability
+         search -> match every listing -> open up to 3 exact matches
+         until one is confirmed in stock (else out of stock / unknown)
     4. Store results in the job store
 GET /api/v1/search/{search_id}  ->  {status, source_product, results}
 ```
@@ -44,8 +45,10 @@ GET /api/v1/search/{search_id}  ->  {status, source_product, results}
 ## Matching rules
 
 1. Brand must be equal after normalization.
-2. Model must match: exact model number when both sides have one, otherwise
-   fuzzy name similarity (RapidFuzz) above a threshold.
+2. Model must match. The model is read from the title (after the brand, before the
+   first bracket or separator) and filler words like "5G" or "Galaxy" are ignored.
+   Numbers and variant words (Pro, Ultra, Max, FE, ...) must be identical, and the
+   RapidFuzz similarity of the rest must be at least 92.
 3. Every category attribute must be present on both sides and equal.
    A missing attribute is a failed check, never a pass.
 4. Score (brand 25, model 35, attributes 40) only ranks candidates that already
@@ -56,13 +59,16 @@ GET /api/v1/search/{search_id}  ->  {status, source_product, results}
 
 ```
 backend/app/
-  main.py                 FastAPI app, routes, logging
+  main.py                 FastAPI app, logging
+  api.py                  routes
   config.py               settings from env
-  schemas.py              Product, Candidate, MarketplaceResult, Job, enums
+  schemas.py              Product, Candidate, MarketplaceResult, SearchJob, enums
+  errors.py               InvalidUrlError, ExtractionError, FetchError
+  http.py                 shared HTTP client with host allowlist
   job_store.py            in-memory job store
   extractors/amazon.py    URL validation, fetch, parse, category
   marketplaces/
-    base.py               MarketplaceAdapter: search(), get_details()
+    base.py               MarketplaceAdapter: search(), check_availability()
     flipkart.py  croma.py  myntra.py
   matching/
     normalizer.py         units, colours, brands

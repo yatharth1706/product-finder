@@ -34,10 +34,27 @@ npm install
 npm run dev
 ```
 
+## API
+
+```bash
+curl -X POST localhost:8000/api/v1/search \
+  -H 'content-type: application/json' \
+  -d '{"amazon_url": "https://www.amazon.in/dp/B0DSKNQW8F"}'
+# -> 202 {"search_id": "...", "status": "pending"}
+
+curl localhost:8000/api/v1/search/<search_id>
+# -> {"status": "completed", "source_product": {...}, "results": [...]}
+```
+
 ## Tests and lint
 
 ```bash
 cd backend
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
+
+cd ../frontend
+npx tsc --noEmit && npm run lint
 ```
+
+Tests use saved pages in `backend/tests/fixtures/` and never call live sites.

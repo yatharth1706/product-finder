@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    // Product images come straight from the marketplaces' CDNs.
+    remotePatterns: [
+      { protocol: "https", hostname: "m.media-amazon.com" },
+      { protocol: "https", hostname: "*.flixcart.com" },
+      { protocol: "https", hostname: "assets.myntassets.com" },
+      { protocol: "https", hostname: "media-ik.croma.com" },
+    ],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
