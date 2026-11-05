@@ -6,7 +6,7 @@ Re-run from any deploy host with `cd backend && uv run python scripts/access_che
 | Site | Plain httpx | What works |
 |---|---|---|
 | Amazon.in | OK | Product HTML has `#productTitle`, breadcrumb (category), `#productOverview_feature_div` (brand, RAM), `#availability`, `#landingImage`. Storage often only appears in the title. |
-| Flipkart | OK | Search HTML lists product links (`/p/itm...`). Each card carries spec bullets (e.g. "12 GB RAM \| 256 GB ROM") and "Currently unavailable" when out of stock. Product pages show "Buy now" or "Notify Me". |
+| Flipkart | OK | Search HTML has one `div[data-id]` card per listing. Electronics cards carry spec bullets ("12 GB RAM \| 256 GB ROM", "Model ID: UA55...") and "Currently unavailable" when out of stock. Fashion cards carry brand and title but no colour. Product pages include schema.org Product data (JSON-LD) with colour and `InStock` / `OutOfStock`. |
 | Myntra | OK, with session | JSON API `/gateway/v2/search/<query>` returns brand, `primaryColour`, `landingPageUrl` and per-size `inventoryInfo`. Returns 401 unless the client first loads the homepage to get session cookies, as a browser would. |
 | Croma | Blocked | Akamai returns 403 for httpx and for headless Chromium. A real Chrome browser got through once and was blocked on the next request. |
 | Reliance Digital | OK | Search pages embed the listing data as JSON (`window.__INITIAL_STATE__`): brand, colour, storage, `sellable` flag. `sellable` is false exactly when stock quantity is 0. 12 listings per page (`page_no=N`). |

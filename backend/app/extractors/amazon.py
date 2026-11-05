@@ -6,7 +6,13 @@ from bs4 import BeautifulSoup
 
 from app.errors import ExtractionError, FetchError, InvalidUrlError
 from app.http import fetch, host_allowed, make_client
-from app.matching.normalizer import find_sizes, model_from_title, normalize_size, size_in_gb
+from app.matching.normalizer import (
+    find_sizes,
+    model_from_title,
+    normalize_screen_size,
+    normalize_size,
+    size_in_gb,
+)
 from app.schemas import REQUIRED_ATTRIBUTES, Category, FailureReason, Product
 
 logger = logging.getLogger(__name__)
@@ -15,12 +21,30 @@ AMAZON_HOSTS = {"amazon.in", "amazon.com", "amzn.in", "amzn.to", "amzn.eu"}
 SHORT_LINK_HOSTS = {"amzn.in", "amzn.to", "amzn.eu"}
 ASIN_PATTERN = re.compile(r"/(?:dp|gp/product|gp/aw/d)/([A-Z0-9]{10})(?:[/?]|$)")
 
-# Last breadcrumb on the Amazon page -> our category.
+# Breadcrumb on the Amazon page -> our category. The most specific crumb that is
+# listed here wins, so "Electronics > ... > Televisions > Smart Televisions" is a TV.
 CATEGORY_BREADCRUMBS = {
     "smartphones": Category.SMARTPHONE,
+    "televisions": Category.TELEVISION,
+    "sneakers": Category.SNEAKER,
+    "casual shoes": Category.SNEAKER,
+    "running shoes": Category.SNEAKER,
+    "walking shoes": Category.SNEAKER,
+    "training shoes": Category.SNEAKER,
+    "basketball shoes": Category.SNEAKER,
+    "t-shirts": Category.CLOTHING,
+    "polos": Category.CLOTHING,
+    "t-shirts & polos": Category.CLOTHING,
+    "jerseys": Category.CLOTHING,
+    "sports t-shirts & jerseys": Category.CLOTHING,
 }
 
-ATTRIBUTE_LABELS = {"ram": "RAM", "storage": "storage"}
+ATTRIBUTE_LABELS = {
+    "ram": "RAM",
+    "storage": "storage",
+    "screen_size": "screen size",
+    "colour": "colour",
+}
 
 
 def validate_amazon_url(url: str) -> str:
@@ -69,14 +93,15 @@ def parse_product_page(html: str, url: str) -> Product:
         a.get_text(strip=True) for a in soup.select("#wayfinding-breadcrumbs_feature_div a")
     ]
     category = resolve_category(breadcrumbs, title)
-    overview = read_overview_table(soup)
+    specs = read_specs(soup)
 
-    brand = overview.get("brand") or read_byline_brand(soup) or title.split()[0]
-    model = model_from_title(title, brand)
+    brand = specs.get("brand") or read_byline_brand(soup) or title.split()[0]
+    model = extract_model(category, title, brand, specs)
     if not model:
-        raise ExtractionError("Could not find the model name on the Amazon page")
+        label = "model number" if category == Category.TELEVISION else "model name"
+        raise ExtractionError(f"The Amazon page does not state the {label}")
 
-    attributes = extract_attributes(category, title, overview)
+    attributes = extract_attributes(category, title, specs, soup)
     missing = [name for name in REQUIRED_ATTRIBUTES[category] if name not in attributes]
     if missing:
         labels = ", ".join(ATTRIBUTE_LABELS.get(name, name) for name in missing)
@@ -91,14 +116,15 @@ def parse_product_page(html: str, url: str) -> Product:
         category=category,
         attributes=attributes,
         image_url=image and (image.get("data-old-hires") or image.get("src")),
+        search_query=build_search_query(category, title, brand, model),
     )
 
 
 def resolve_category(breadcrumbs: list[str], title: str) -> Category:
-    if breadcrumbs:
-        category = CATEGORY_BREADCRUMBS.get(breadcrumbs[-1].lower())
-        if category:
+    for crumb in reversed(breadcrumbs):
+        if category := CATEGORY_BREADCRUMBS.get(crumb.lower()):
             return category
+    if breadcrumbs:
         raise ExtractionError(f"Unsupported category: {breadcrumbs[-1]}")
     # Some pages have no breadcrumb; fall back to the title.
     if "smartphone" in title.lower():
@@ -106,14 +132,32 @@ def resolve_category(breadcrumbs: list[str], title: str) -> Category:
     raise ExtractionError("Could not tell which category this product belongs to")
 
 
-def read_overview_table(soup: BeautifulSoup) -> dict[str, str]:
-    """The 'Brand | Samsung' style table near the top of the page, with lowercase keys."""
-    table = {}
+def read_specs(soup: BeautifulSoup) -> dict[str, str]:
+    """Every 'label | value' row in the page's spec sections, with lowercase labels.
+
+    Amazon spreads specs over several layouts depending on the category; the first
+    value seen for a label wins.
+    """
+    specs: dict[str, str] = {}
+
+    def add(label: str, value: str) -> None:
+        label = re.sub(r"[\s\u200e\u200f:]+", " ", label).strip().lower()
+        value = re.sub(r"[\s\u200e\u200f]+", " ", value).strip()
+        if label and value:
+            specs.setdefault(label, value)
+
     for row in soup.select("#productOverview_feature_div tr"):
         cells = row.find_all("td")
         if len(cells) >= 2:
-            table[cells[0].get_text(" ", strip=True).lower()] = cells[-1].get_text(" ", strip=True)
-    return table
+            add(cells[0].get_text(" ", strip=True), cells[-1].get_text(" ", strip=True))
+    for row in soup.select("table.prodDetTable tr"):
+        label, value = row.find("th"), row.find("td")
+        if label and value:
+            add(label.get_text(" ", strip=True), value.get_text(" ", strip=True))
+    for item in soup.select("#detailBullets_feature_div li"):
+        label, _, value = item.get_text(" ", strip=True).partition(":")
+        add(label, value)
+    return specs
 
 
 def read_byline_brand(soup: BeautifulSoup) -> str | None:
@@ -126,20 +170,50 @@ def read_byline_brand(soup: BeautifulSoup) -> str | None:
     return match and (match.group(1) or match.group(2))
 
 
-def extract_attributes(category: Category, title: str, overview: dict[str, str]) -> dict[str, str]:
+def extract_model(category: Category, title: str, brand: str, specs: dict[str, str]) -> str:
+    if category == Category.TELEVISION:
+        # A TV is identified by its model number; names like "Crystal 4K" cover many sets.
+        return specs.get("model number") or specs.get("item model number") or ""
+    if category in (Category.SNEAKER, Category.CLOTHING):
+        # Fashion titles are often generic ("Puma Men Polos"); the spec name is cleaner.
+        return specs.get("model name") or model_from_title(title, brand)
+    return model_from_title(title, brand)
+
+
+def build_search_query(category: Category, title: str, brand: str, model: str) -> str:
+    if category == Category.TELEVISION:
+        # Marketplaces do not index model numbers well, so search by the product name:
+        # "Samsung 55 inch (138cm) Crystal UHD 4K Vision AI 2026 Smart TV | ..." -> before "|".
+        return re.split(r"[|,]", title, maxsplit=1)[0].strip()
+    return f"{brand} {model}"
+
+
+def extract_attributes(
+    category: Category, title: str, specs: dict[str, str], soup: BeautifulSoup
+) -> dict[str, str]:
     if category == Category.SMARTPHONE:
-        return extract_phone_attributes(title, overview)
-    return {}
+        return extract_phone_attributes(title, specs)
+    if category == Category.TELEVISION:
+        size = normalize_screen_size(specs.get("screen size", "")) or normalize_screen_size(title)
+        return {"screen_size": size} if size else {}
+    colour = read_selected_colour(soup) or specs.get("colour") or specs.get("color")
+    return {"colour": colour} if colour else {}
 
 
-def extract_phone_attributes(title: str, overview: dict[str, str]) -> dict[str, str]:
+def read_selected_colour(soup: BeautifulSoup) -> str | None:
+    """The colour picked in the variant selector, e.g. 'WHITE/BLACK-WOLF GREY'."""
+    node = soup.select_one("#inline-twister-expanded-dimension-text-color_name")
+    return node.get_text(" ", strip=True) or None if node else None
+
+
+def extract_phone_attributes(title: str, specs: dict[str, str]) -> dict[str, str]:
     """RAM and storage from the spec table, falling back to the title.
 
     Titles write them in several ways: '12GB RAM, 256GB Storage', '(8GB + 256GB)',
     '(Black, 8GB, 128GB)'. When unlabelled, the smaller size is RAM and the larger is storage.
     """
-    ram = normalize_size(overview.get("ram memory installed size", ""))
-    storage = normalize_size(overview.get("memory storage capacity", ""))
+    ram = normalize_size(specs.get("ram memory installed size", ""))
+    storage = normalize_size(specs.get("memory storage capacity", ""))
 
     if not ram:
         labelled = re.search(r"(\d+\s*(?:GB|TB))\s*RAM", title, re.I)

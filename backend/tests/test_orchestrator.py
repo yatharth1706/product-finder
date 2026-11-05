@@ -37,7 +37,7 @@ async def test_out_of_stock_match() -> None:
     result = await search_marketplace(adapter, PRODUCT)
     assert result.status == ResultStatus.OUT_OF_STOCK
     assert result.url
-    assert adapter.availability_checks == []
+    assert adapter.details_opened == []
 
 
 async def test_not_listed_when_no_exact_match() -> None:
@@ -55,10 +55,25 @@ async def test_unknown_availability_is_not_reported_as_in_or_out_of_stock() -> N
     assert result.url == "https://www.flipkart.com/s25"
 
 
-async def test_availability_checks_are_bounded() -> None:
+async def test_product_pages_opened_are_bounded() -> None:
     adapter = FakeAdapter(candidates=[listing(url=f"https://f/{i}") for i in range(10)])
     await search_marketplace(adapter, PRODUCT)
-    assert len(adapter.availability_checks) == 3
+    assert len(adapter.details_opened) == 6
+
+
+async def test_pages_of_known_mismatches_are_not_opened() -> None:
+    adapter = FakeAdapter(
+        candidates=[listing(url="https://f/512", storage="512 GB"), listing(url="https://f/256")]
+    )
+    await search_marketplace(adapter, PRODUCT)
+    assert adapter.details_opened == ["https://f/256"]
+
+
+async def test_repeated_listings_are_checked_once() -> None:
+    adapter = FakeAdapter(candidates=[listing(), listing()])
+    result = await search_marketplace(adapter, PRODUCT)
+    assert adapter.details_opened == ["https://www.flipkart.com/s25"]
+    assert result.candidates_checked == 1
 
 
 async def test_blocked_marketplace_is_a_failure_not_not_listed() -> None:

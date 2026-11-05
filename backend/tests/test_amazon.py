@@ -56,6 +56,49 @@ def test_parses_smartphone_pages(
     assert product.image_url and product.image_url.startswith("https://")
 
 
+@pytest.mark.parametrize(
+    ("fixture", "category", "model", "attributes", "query"),
+    [
+        (
+            "tv_samsung_ue85.html",
+            Category.TELEVISION,
+            "UA55UE85AHULXL",
+            {"screen_size": "55 inch"},
+            "Samsung 55 inch (138cm) Crystal UHD 4K Vision AI 2026 Smart TV",
+        ),
+        (
+            "sneaker_nike_air_max_bia.html",
+            Category.SNEAKER,
+            "Air Max Bia",
+            {"colour": "WHITE/BLACK-WOLF GREY"},
+            "Nike Air Max Bia",
+        ),
+        (
+            "sneaker_adidas_drogo.html",
+            Category.SNEAKER,
+            "Drogo M",
+            {"colour": "CGRANI/GRESIX"},
+            "adidas Drogo M",
+        ),
+        (
+            "polo_puma.html",
+            Category.CLOTHING,
+            "ESS Zippered Placket Polo",
+            {"colour": "Desert Dust"},
+            "PUMA ESS Zippered Placket Polo",
+        ),
+    ],
+)
+def test_parses_other_categories(
+    fixture: str, category: Category, model: str, attributes: dict[str, str], query: str
+) -> None:
+    product = parse_product_page(read_fixture(f"amazon/{fixture}"), URL)
+    assert product.category == category
+    assert product.model == model
+    assert product.attributes == attributes
+    assert product.search_query == query
+
+
 def test_unsupported_category() -> None:
     with pytest.raises(ExtractionError, match="Unsupported category"):
         parse_product_page(read_fixture("amazon/book.html"), URL)
@@ -73,7 +116,7 @@ def test_page_without_product() -> None:
 
 
 def test_missing_storage_is_reported() -> None:
-    html = read_fixture("amazon/phone_s25_ultra_in_stock.html").replace("256GB Storage", "")
-    html = html.replace("256GB", "")
+    # Remove the storage size from the title and from the spec table.
+    html = read_fixture("amazon/phone_s25_ultra_in_stock.html").replace("256", "")
     with pytest.raises(ExtractionError, match="storage"):
         parse_product_page(html, URL)

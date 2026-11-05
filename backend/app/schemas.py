@@ -61,10 +61,13 @@ class Product(BaseModel):
     url: str
     title: str
     brand: str
+    # Model name, or for televisions the manufacturer's model number.
     model: str
     category: Category
     attributes: dict[str, str] = Field(default_factory=dict)
     image_url: str | None = None
+    # What we type into each marketplace's search box.
+    search_query: str
 
 
 class Candidate(BaseModel):
@@ -75,6 +78,7 @@ class Candidate(BaseModel):
     title: str
     # Set only when the marketplace gives the brand as a separate field.
     brand: str | None = None
+    model_number: str | None = None
     attributes: dict[str, str] = Field(default_factory=dict)
     image_url: str | None = None
     availability: Availability = Availability.UNKNOWN

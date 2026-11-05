@@ -11,6 +11,7 @@ PRODUCT = Product(
     model="Galaxy S25 Ultra",
     category=Category.SMARTPHONE,
     attributes={"ram": "12 GB", "storage": "256 GB"},
+    search_query="Samsung Galaxy S25 Ultra",
 )
 
 
@@ -43,7 +44,7 @@ class FakeAdapter(MarketplaceAdapter):
         self.stock = stock or {}
         self.error = error
         self.delay = delay
-        self.availability_checks: list[str] = []
+        self.details_opened: list[str] = []
 
     async def search(self, product: Product) -> list[Candidate]:
         await asyncio.sleep(self.delay)
@@ -51,6 +52,7 @@ class FakeAdapter(MarketplaceAdapter):
             raise FetchError(self.error)
         return self.candidates
 
-    async def check_availability(self, candidate: Candidate) -> Availability:
-        self.availability_checks.append(candidate.url)
-        return self.stock.get(candidate.url, Availability.UNKNOWN)
+    async def get_details(self, candidate: Candidate) -> Candidate:
+        self.details_opened.append(candidate.url)
+        availability = self.stock.get(candidate.url, Availability.UNKNOWN)
+        return candidate.model_copy(update={"availability": availability})

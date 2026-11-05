@@ -7,7 +7,7 @@ from urllib.parse import quote
 from app.errors import FetchError
 from app.http import fetch, make_client
 from app.marketplaces.base import MarketplaceAdapter
-from app.matching.normalizer import normalize_size
+from app.matching.normalizer import normalize_screen_size, normalize_size
 from app.schemas import Availability, Candidate, FailureReason, Platform, Product
 
 BASE_URL = "https://www.reliancedigital.in"
@@ -23,7 +23,7 @@ class RelianceDigitalAdapter(MarketplaceAdapter):
     platform = Platform.RELIANCE_DIGITAL
 
     async def search(self, product: Product) -> list[Candidate]:
-        query = quote(f"{product.brand} {product.model}")
+        query = quote(product.search_query)
         async with make_client(ALLOWED_HOSTS) as client:
             responses = await asyncio.gather(
                 *(
@@ -33,10 +33,13 @@ class RelianceDigitalAdapter(MarketplaceAdapter):
             )
         return [c for response in responses for c in parse_search_page(response.text)]
 
-    async def check_availability(self, candidate: Candidate) -> Availability:
+    async def get_details(self, candidate: Candidate) -> Candidate:
+        # Search results already carry stock; only open the page if they did not.
+        if candidate.availability != Availability.UNKNOWN:
+            return candidate
         async with make_client(ALLOWED_HOSTS) as client:
             response = await fetch(client, candidate.url)
-        return parse_availability(response.text)
+        return candidate.model_copy(update={"availability": parse_availability(response.text)})
 
 
 def read_page_state(html: str) -> dict[str, Any]:
@@ -69,6 +72,9 @@ def to_candidate(item: dict[str, Any]) -> Candidate:
         attributes["storage"] = storage
     if specs.get("colour"):
         attributes["colour"] = specs["colour"]
+    # "138 cm - 55 inch"
+    if screen_size := normalize_screen_size(specs.get("screen_size_diagonal") or ""):
+        attributes["screen_size"] = screen_size
 
     media = item.get("medias") or []
     return Candidate(
@@ -76,6 +82,7 @@ def to_candidate(item: dict[str, Any]) -> Candidate:
         url=f"{BASE_URL}/product/{item['slug']}",
         title=name,
         brand=(item.get("brand") or {}).get("name"),
+        model_number=specs.get("model-name"),
         attributes=attributes,
         image_url=media[0].get("url") if media else None,
         availability=availability_from_sellable(item.get("sellable")),

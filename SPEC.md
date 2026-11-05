@@ -37,26 +37,46 @@ A failed search is never reported as `not_listed`.
 POST /api/v1/search {amazon_url}  ->  202 {search_id}
   background task:
     1. Amazon extractor: fetch page, read title, breadcrumb (category), spec tables
-    2. Normalize attributes (units, colours, brand names)
-    3. For each marketplace of the category, concurrently:
-         search -> match every listing -> open up to 3 exact matches
-         until one is confirmed in stock (else out of stock / unknown)
-    4. Store results in the job store
+    2. For each marketplace of the category, concurrently:
+         search -> drop repeated listings
+         -> open up to 6 product pages of listings that could still match but lack
+            a required detail (colour) or a stock status
+         -> match every listing -> prefer in stock, then out of stock
+    3. Store results in the job store
 GET /api/v1/search/{search_id}  ->  {status, source_product, results}
 ```
 
 ## Matching rules
 
-1. Brand must be equal after normalization.
-2. Model must match. The model is read from the title (after the brand, before the
-   first bracket or separator) and filler words like "5G" or "Galaxy" are ignored.
-   Numbers and variant words (Pro, Ultra, Max, FE, ...) must be identical, and the
-   RapidFuzz similarity of the rest must be at least 92.
+1. Brand must be equal after normalization ("One Plus" == "OnePlus", "Redmi" == "Xiaomi").
+2. Model must match.
+   - Televisions: the manufacturer model number must be identical (`UA55M2EHAULXL`).
+     Model names like "Crystal 4K" are shared across sizes and years.
+   - Everything else: the model name is read from the title (or Amazon's "Model Name"
+     for fashion). Filler words ("5G", "Galaxy", "Sneakers", "Men's") are ignored.
+     Numbers and variant words (Pro, Ultra, Max, Lite, FE, ...) must be identical,
+     the gender must agree when both sides state one, and the RapidFuzz similarity
+     must be at least 92.
 3. Every category attribute must be present on both sides and equal.
    A missing attribute is a failed check, never a pass.
+   - RAM / storage: normalized sizes ("12GB RAM" == "12 GB").
+   - Screen size: inches ("138 cm (55 inch)" == "55 Inches").
+   - Colour: mapped to basic colours ("Desert Dust" -> beige, "Wolf Grey" -> grey).
+     Main colour must be equal; when both sides list several colours, the sets must
+     be equal. Unknown colour words never match.
 4. Score (brand 25, model 35, attributes 40) only ranks candidates that already
    passed every check. A high score never overrides a failed check.
 5. Every decision returns its checks and the reasons for any rejection.
+
+## Known limitations
+
+- Croma blocks server requests; it always reports `blocked`.
+- Flipkart clothing titles rarely contain the model name ("PUMA Solid Men Polo Neck
+  Blue T-Shirt"), so clothing is usually `not_listed` on Flipkart.
+- Myntra search results give one primary colour, so two colourways with the same
+  main colour (white/black vs white/green) cannot be told apart there.
+- iPhones: Apple does not publish RAM, so the Amazon page fails extraction.
+- Only the first page (about 24 listings) of each search is checked.
 
 ## Backend layout
 
@@ -71,8 +91,9 @@ backend/app/
   job_store.py            in-memory job store
   extractors/amazon.py    URL validation, fetch, parse, category
   marketplaces/
-    base.py               MarketplaceAdapter: search(), check_availability()
+    base.py               MarketplaceAdapter
     flipkart.py  croma.py  reliance_digital.py  myntra.py
+                          search(), get_details()
   matching/
     normalizer.py         units, colours, brands
     matcher.py            per-category rules, score, reasons
@@ -94,6 +115,6 @@ frontend/                 Next.js page: input, source product, result cards
 1. Access check + project skeleton.
 2. Smartphones end to end: Amazon -> Flipkart -> matching -> API -> basic UI.
 3. Croma (reports blocked) + Reliance Digital, concurrent searches, partial failures.
-4. Televisions, then Myntra with sneakers and clothing.
+4. Televisions, sneakers, clothing; Myntra.
 5. Deploy, UI polish.
 6. "Explain it to a 5-year-old" matching document.

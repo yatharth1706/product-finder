@@ -1,4 +1,4 @@
-from app.matching.matcher import match, rank_matches
+from app.matching.matcher import match, may_match, rank_matches
 from app.schemas import Candidate, Category, Platform, Product
 
 SOURCE = Product(
@@ -8,6 +8,7 @@ SOURCE = Product(
     model="Galaxy S25 Ultra",
     category=Category.SMARTPHONE,
     attributes={"ram": "12 GB", "storage": "256 GB"},
+    search_query="Samsung Galaxy S25 Ultra",
 )
 
 
@@ -98,3 +99,88 @@ def test_lite_variant_is_rejected() -> None:
     oneplus = SOURCE.model_copy(update={"brand": "OnePlus", "model": "Nord CE6"})
     listing = candidate("OnePlus Nord CE6 Lite 5G 256 GB, 12 GB RAM, Hyper Black, Mobile Phone")
     assert not match(oneplus, listing).matched
+
+
+TV = Product(
+    url="https://www.amazon.in/dp/B0GXV5313B",
+    title="Samsung 55 inch (138cm) Vision AI 2026 4K Mini LED Smart TV",
+    brand="Samsung",
+    model="UA55M2EHAULXL",
+    category=Category.TELEVISION,
+    attributes={"screen_size": "55 inch"},
+    search_query="Samsung 55 inch (138cm) Vision AI 2026 4K Mini LED Smart TV",
+)
+
+
+def tv_listing(model_number: str | None, screen_size: str = "55 inch") -> Candidate:
+    return Candidate(
+        platform=Platform.FLIPKART,
+        url="https://www.flipkart.com/tv",
+        title="Samsung Vision AI 138 cm (55 inch) Ultra HD (4K) Mini LED Smart Tizen TV",
+        model_number=model_number,
+        attributes={"screen_size": screen_size},
+    )
+
+
+def test_tv_matches_on_model_number() -> None:
+    assert match(TV, tv_listing("UA55M2EHAULXL")).matched
+
+
+def test_tv_with_similar_model_number_is_rejected() -> None:
+    result = match(TV, tv_listing("UA55M2EHAFLXL"))
+    assert not result.matched
+    assert result.reasons == ["Model number mismatch: expected UA55M2EHAULXL, found UA55M2EHAFLXL"]
+
+
+def test_tv_without_model_number_is_rejected() -> None:
+    assert not match(TV, tv_listing(None)).matched
+
+
+def test_tv_screen_size_mismatch() -> None:
+    result = match(TV, tv_listing("UA55M2EHAULXL", screen_size="65 inch"))
+    assert not result.matched
+    assert result.checks["screen_size"] is False
+
+
+SNEAKER = Product(
+    url="https://www.amazon.in/dp/B0FQN7T937",
+    title="Nike Mens Air Max Bia Sneakers",
+    brand="Nike",
+    model="Air Max Bia",
+    category=Category.SNEAKER,
+    attributes={"colour": "WHITE/BLACK-WOLF GREY"},
+    search_query="Nike Air Max Bia",
+)
+
+
+def shoe(title: str, colour: str | None) -> Candidate:
+    return Candidate(
+        platform=Platform.MYNTRA,
+        url="https://www.myntra.com/shoe",
+        title=title,
+        brand="Nike",
+        attributes={"colour": colour} if colour else {},
+    )
+
+
+def test_sneaker_matches_on_model_and_main_colour() -> None:
+    assert match(SNEAKER, shoe("Nike Air Max Bia Men's Shoes", "White")).matched
+
+
+def test_sneaker_colourway_mismatch() -> None:
+    result = match(SNEAKER, shoe("Nike Air Max Bia Men's Shoes", "Black"))
+    assert not result.matched
+    assert result.checks["colour"] is False
+
+
+def test_sneaker_gender_mismatch() -> None:
+    result = match(SNEAKER, shoe("Nike Air Max Bia Women's Shoes", "White"))
+    assert not result.matched
+    assert result.reasons == ["Gender mismatch: expected men, found women"]
+
+
+def test_sneaker_without_colour_is_never_a_match() -> None:
+    result = match(SNEAKER, shoe("Nike Air Max Bia Men's Shoes", None))
+    assert not result.matched
+    assert may_match(SNEAKER, shoe("Nike Air Max Bia Men's Shoes", None))
+    assert not may_match(SNEAKER, shoe("Nike Air Max SC Men's Shoes", None))

@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 15.0
     # Whole search on one marketplace, including availability checks.
     marketplace_timeout_seconds: float = 30.0
-    # Product pages opened per marketplace to confirm stock.
-    max_availability_checks: int = 3
+    # Product pages opened per marketplace to fill in colour or stock.
+    max_detail_pages: int = 6
     log_level: str = "INFO"
 
 

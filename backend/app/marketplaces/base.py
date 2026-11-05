@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas import Availability, Candidate, Platform, Product
+from app.schemas import Candidate, Platform, Product
 
 
 class MarketplaceAdapter(ABC):
@@ -16,6 +16,9 @@ class MarketplaceAdapter(ABC):
     async def search(self, product: Product) -> list[Candidate]:
         """Listings the marketplace returns for this product, best first."""
 
-    @abstractmethod
-    async def check_availability(self, candidate: Candidate) -> Availability:
-        """Whether this listing can be bought right now."""
+    async def get_details(self, candidate: Candidate) -> Candidate:
+        """The listing with details its search result lacked (colour, stock), if any.
+
+        Marketplaces whose search results are already complete keep this default.
+        """
+        return candidate
