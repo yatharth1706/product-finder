@@ -12,7 +12,8 @@ Paste an Amazon product link and see whether the exact same product is **in stoc
 | Sneakers | Flipkart, Myntra | Colour |
 | T-shirts, polos, jerseys | Flipkart, Myntra | Colour |
 
-- **How matching works, explained simply:** [docs/how-matching-works.md](docs/how-matching-works.md)
+- **How matching works, explained simply:** [one-page PDF](docs/how-matching-works.pdf) ·
+  [longer version](docs/how-matching-works.md)
 - **Scope, design and matching rules:** [SPEC.md](SPEC.md)
 - **What each store allows, and from where:** [docs/access-check.md](docs/access-check.md)
 

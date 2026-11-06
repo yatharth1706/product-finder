@@ -26,6 +26,19 @@ Checked on 2026-11-05 and 2026-11-06 against the deployed backend.
 | Croma | OK. The search API answers once `query` ends with `:relevance`, as on Croma's website (without it: HTTP 400 "Invalid Search Request"). Listings carry name, link, image, manufacturer, a shortened model code in `summary`, and `stockFlag` (the stores holding stock; empty means out of stock). |
 | Myntra | Refused, for both the search page and the JSON API: a fake "Site Maintenance" page (HTTP 200) while the site works from a home connection. Reported as `blocked`. |
 
+## From AWS directly (CloudShell, Mumbai `ap-south-1`)
+
+Checked on 2026-11-06 with the same four requests, to see whether moving the
+backend to an EC2 server would help.
+
+| Site | Result |
+|---|---|
+| Amazon.in, Flipkart, Croma | OK |
+| Myntra | Refused (the same page without product data, HTTP 200) |
+
+Same as Vercel, which also runs on AWS: Myntra refuses AWS addresses in general, so
+an EC2 server would not change anything.
+
 ## Decisions
 
 - Every store is read with plain HTTP requests (httpx) and BeautifulSoup or JSON.
