@@ -58,7 +58,7 @@ export default function Home() {
             return result ? (
               <MarketplaceResult key={platform} result={result} />
             ) : (
-              <PendingResult key={platform} platform={platform} />
+              <PendingResult key={platform} platform={platform} stopped={!running} />
             );
           })}
         </section>
