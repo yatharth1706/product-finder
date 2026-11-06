@@ -1,5 +1,6 @@
+import json
+import re
 from typing import Any
-from urllib.parse import quote
 
 from app.errors import FetchError
 from app.http import fetch, make_client
@@ -7,37 +8,40 @@ from app.marketplaces.base import MarketplaceAdapter
 from app.schemas import Availability, Candidate, FailureReason, Platform, Product
 
 BASE_URL = "https://www.myntra.com"
-SEARCH_URL = BASE_URL + "/gateway/v2/search/{query}?rows=50"
 ALLOWED_HOSTS = {"myntra.com"}
+STATE_MARKER = "window.__myx = "
 
 
 class MyntraAdapter(MarketplaceAdapter):
-    """Myntra's search API returns brand, colour and stock per size in one response,
-    so no product pages are needed."""
+    """Myntra's search page embeds its results as JSON (brand, colour, stock per size),
+    so one request per search is enough and no product pages are needed."""
 
     platform = Platform.MYNTRA
 
     async def search(self, product: Product) -> list[Candidate]:
+        # Myntra's search URL is the query as a slug: /nike-air-max-bia
+        slug = re.sub(r"[^a-z0-9]+", "-", product.search_query.lower()).strip("-")
         async with make_client(ALLOWED_HOSTS) as client:
-            # The search API answers 401 until the homepage has set session cookies,
-            # just as it would for a browser.
-            await fetch(client, BASE_URL + "/")
-            response = await fetch(client, SEARCH_URL.format(query=quote(product.search_query)))
-        try:
-            data = response.json()
-        except ValueError as exc:
-            snippet = " ".join(response.text[:200].split())
-            # Myntra answers refused clients (e.g. cloud servers) with a fake
-            # "Site Maintenance" page while the site works fine elsewhere.
-            reason = (
-                FailureReason.BLOCKED
-                if "maintenance" in snippet.lower()
-                else FailureReason.PARSE_ERROR
-            )
-            raise FetchError(
-                reason, f"Myntra search was not JSON (HTTP {response.status_code}): {snippet}"
-            ) from exc
-        return parse_search_results(data)
+            response = await fetch(client, f"{BASE_URL}/{slug}")
+        return parse_search_page(response.text)
+
+
+def parse_search_page(html: str) -> list[Candidate]:
+    start = html.find(STATE_MARKER)
+    if start < 0:
+        snippet = " ".join(html[:200].split())
+        # Myntra answers refused clients with a fake "Site Maintenance" page
+        # while the site works fine for everyone else.
+        reason = (
+            FailureReason.BLOCKED if "maintenance" in snippet.lower() else FailureReason.PARSE_ERROR
+        )
+        raise FetchError(reason, f"no search data on Myntra page: {snippet}")
+    try:
+        state, _ = json.JSONDecoder().raw_decode(html, start + len(STATE_MARKER))
+        results = state["searchData"]["results"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise FetchError(FailureReason.PARSE_ERROR, "unreadable Myntra page data") from exc
+    return parse_search_results(results)
 
 
 def parse_search_results(data: dict[str, Any]) -> list[Candidate]:

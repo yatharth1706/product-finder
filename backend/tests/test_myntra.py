@@ -6,7 +6,11 @@ import pytest
 from app.errors import FetchError
 from app.http import make_client
 from app.marketplaces import myntra
-from app.marketplaces.myntra import availability_from_sizes, parse_search_results
+from app.marketplaces.myntra import (
+    availability_from_sizes,
+    parse_search_page,
+    parse_search_results,
+)
 from app.schemas import Availability, FailureReason
 from tests.conftest import read_fixture
 from tests.fakes import PRODUCT
@@ -23,6 +27,19 @@ def test_parses_search_results() -> None:
     assert first.url.startswith("https://www.myntra.com/Casual-Shoes/Nike/")
     assert first.image_url and first.image_url.startswith("https://")
     assert first.availability == Availability.IN_STOCK
+
+
+def test_parses_search_page() -> None:
+    candidates = parse_search_page(read_fixture("myntra/search_page_nike_air_max_bia.html"))
+    assert candidates
+    assert any(c.title == "Nike Air Max Bia Men's Shoes" for c in candidates)
+    assert all(c.url.startswith("https://www.myntra.com/") for c in candidates)
+
+
+def test_page_without_search_data_is_a_parse_error() -> None:
+    with pytest.raises(FetchError) as exc:
+        parse_search_page("<html><body>Something else</body></html>")
+    assert exc.value.reason == FailureReason.PARSE_ERROR
 
 
 def test_stock_from_sizes() -> None:
