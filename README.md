@@ -56,7 +56,7 @@ curl localhost:8000/api/v1/search/<search_id>
 
 ## Deployment
 
-Both apps are on Vercel, as separate projects:
+Both apps are on Vercel, as two projects:
 
 - `frontend/` builds with `NEXT_PUBLIC_API_URL=https://product-finder-api.vercel.app`.
 - `backend/` runs FastAPI as a Vercel Function in Mumbai (`bom1`, see
@@ -69,10 +69,8 @@ request may reach a different instance, so polling would not be reliable there.
 Locally and in Docker the default `background` mode returns at once and the
 frontend polls `GET /api/v1/search/{id}`. The frontend handles both.
 
-```bash
-cd backend && vercel deploy --prod
-cd frontend && vercel deploy --prod
-```
+Both Vercel projects are connected to this repository (root directories
+`backend` and `frontend`), so every push to `main` deploys both.
 
 ## Tests and lint
 
