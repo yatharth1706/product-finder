@@ -63,6 +63,26 @@ export function MarketplaceResult({ result }: { result: Result }) {
           Checked {result.candidates_checked} listings; none was exactly this product.
         </p>
       )}
+      {result.closest_listing && (
+        <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+          <p>
+            Closest:{" "}
+            <a
+              href={result.closest_listing.url}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-gray-800 underline-offset-2 hover:underline"
+            >
+              {result.closest_listing.title}
+            </a>
+          </p>
+          <ul className="mt-1 list-disc pl-4">
+            {result.closest_listing.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {result.failure_reason && (
         <p className="text-sm text-gray-600">{FAILURE_MESSAGES[result.failure_reason]}</p>
       )}

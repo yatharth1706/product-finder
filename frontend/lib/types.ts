@@ -1,5 +1,4 @@
 export type Platform = "flipkart" | "croma" | "myntra";
-export type JobStatus = "pending" | "processing" | "completed" | "failed";
 export type ResultStatus = "in_stock" | "out_of_stock" | "not_listed" | "failed";
 export type FailureReason =
   | "blocked"
@@ -25,6 +24,12 @@ export interface MatchResult {
   reasons: string[];
 }
 
+export interface ClosestListing {
+  title: string;
+  url: string;
+  reasons: string[];
+}
+
 export interface MarketplaceResult {
   platform: Platform;
   status: ResultStatus;
@@ -35,13 +40,15 @@ export interface MarketplaceResult {
   failure_reason: FailureReason | null;
   candidates_checked: number;
   search_url: string | null;
+  closest_listing: ClosestListing | null;
 }
 
-export interface SearchJob {
+/** One line of the search stream. */
+export interface SearchEvent {
+  type: "accepted" | "product" | "result" | "completed" | "failed";
   search_id: string;
-  status: JobStatus;
-  source_url: string;
-  source_product: Product | null;
-  results: MarketplaceResult[] | null;
+  product: Product | null;
+  platforms: Platform[] | null;
+  result: MarketplaceResult | null;
   error: string | null;
 }

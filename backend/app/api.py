@@ -1,6 +1,8 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.errors import InvalidUrlError
@@ -10,7 +12,7 @@ from app.marketplaces.croma import CromaAdapter
 from app.marketplaces.flipkart import FlipkartAdapter
 from app.marketplaces.myntra import MyntraAdapter
 from app.orchestrator import SearchOrchestrator
-from app.schemas import Platform, SearchJob, SearchRequest
+from app.schemas import Platform, SearchEvent, SearchJob, SearchRequest
 
 router = APIRouter(prefix="/api/v1")
 
@@ -57,6 +59,34 @@ async def create_search(
     else:
         background_tasks.add_task(search.run, job.search_id, amazon_url)
     return job
+
+
+@router.post("/search/stream")
+async def stream_search(
+    request: SearchRequest, store: StoreDep, search: OrchestratorDep
+) -> StreamingResponse:
+    """The same search, sent as it happens: one JSON event per line (NDJSON).
+
+    The Amazon product arrives first, then each marketplace result as soon as that
+    marketplace finishes, so the page can fill in progressively.
+    """
+    try:
+        amazon_url = validate_amazon_url(request.amazon_url)
+    except InvalidUrlError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
+    job = store.create(amazon_url)
+
+    async def events() -> AsyncIterator[str]:
+        yield SearchEvent(type="accepted", search_id=job.search_id).model_dump_json() + "\n"
+        async for event in search.stream(job.search_id, amazon_url):
+            yield event.model_dump_json() + "\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/search/{search_id}")

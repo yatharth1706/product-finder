@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 
 import pytest
@@ -50,6 +51,25 @@ def test_inline_mode_returns_the_finished_search(
     job = response.json()
     assert job["status"] == "completed"
     assert job["results"][0]["status"] == "out_of_stock"
+
+
+def test_stream_sends_product_then_results(client: TestClient) -> None:
+    with client.stream("POST", "/api/v1/search/stream", json={"amazon_url": PRODUCT.url}) as r:
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("application/x-ndjson")
+        events = [json.loads(line) for line in r.iter_lines() if line]
+
+    assert [e["type"] for e in events] == ["accepted", "product", "result", "completed"]
+    assert events[1]["product"]["model"] == "Galaxy S25 Ultra"
+    assert events[1]["platforms"] == ["flipkart"]
+    assert events[2]["result"]["status"] == "out_of_stock"
+    job = client.get(f"/api/v1/search/{events[0]['search_id']}").json()
+    assert job["status"] == "completed"
+
+
+def test_stream_rejects_non_amazon_url(client: TestClient) -> None:
+    response = client.post("/api/v1/search/stream", json={"amazon_url": "https://x.com/dp/1"})
+    assert response.status_code == 400
 
 
 def test_rejects_non_amazon_url(client: TestClient) -> None:

@@ -1,25 +1,27 @@
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from app.config import settings
 from app.errors import ExtractionError, FetchError
 from app.extractors.amazon import extract_product
 from app.job_store import JobStore
 from app.marketplaces.base import MarketplaceAdapter
-from app.matching.matcher import may_match, rank_matches
+from app.matching.matcher import closest_miss, may_match, rank_matches
 from app.schemas import (
     REQUIRED_ATTRIBUTES,
     Availability,
     Candidate,
     Category,
+    ClosestListing,
     FailureReason,
     MarketplaceResult,
     MatchResult,
     Platform,
     Product,
     ResultStatus,
+    SearchEvent,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,13 @@ class SearchOrchestrator:
         self.extract = extract
 
     async def run(self, search_id: str, amazon_url: str) -> None:
+        """Run a search to the end, recording every step in the job store."""
+        async for _ in self.stream(search_id, amazon_url):
+            pass
+
+    async def stream(self, search_id: str, amazon_url: str) -> AsyncIterator[SearchEvent]:
+        """Yield each step as soon as it is known: the Amazon product, then one result
+        per marketplace in the order they finish. The job store is kept up to date."""
         self.store.mark_processing(search_id)
         started = time.perf_counter()
         try:
@@ -53,10 +62,13 @@ class SearchOrchestrator:
         except ExtractionError as exc:
             logger.info("search=%s extraction failed: %s", search_id, exc)
             self.store.fail(search_id, str(exc))
+            yield SearchEvent(type="failed", search_id=search_id, error=str(exc))
             return
         except Exception:
             logger.exception("search=%s unexpected extraction error", search_id)
-            self.store.fail(search_id, "Something went wrong while reading the Amazon product")
+            error = "Something went wrong while reading the Amazon product"
+            self.store.fail(search_id, error)
+            yield SearchEvent(type="failed", search_id=search_id, error=error)
             return
 
         logger.info(
@@ -65,15 +77,27 @@ class SearchOrchestrator:
             time.perf_counter() - started,
         )  # fmt: skip
         self.store.save_source_product(search_id, product)
-
         platforms = CATEGORY_PLATFORMS.get(product.category, [])
-        results = await asyncio.gather(
-            *(search_marketplace(self.adapters[p], product, search_id) for p in platforms)
-        )
-        for platform, result in zip(platforms, results, strict=True):
-            result.search_url = self.adapters[platform].search_page_url(product)
-        self.store.complete(search_id, list(results))
+        yield SearchEvent(type="product", search_id=search_id, product=product, platforms=platforms)
+
+        tasks = [
+            asyncio.create_task(search_marketplace(self.adapters[p], product, search_id))
+            for p in platforms
+        ]
+        try:
+            for finished in asyncio.as_completed(tasks):
+                result = await finished
+                result.search_url = self.adapters[result.platform].search_page_url(product)
+                self.store.add_result(search_id, result)
+                yield SearchEvent(type="result", search_id=search_id, result=result)
+        finally:
+            # A client that disconnects mid-stream should not leave searches running.
+            for task in tasks:
+                task.cancel()
+
+        self.store.complete(search_id)
         logger.info("search=%s completed in %.1fs", search_id, time.perf_counter() - started)
+        yield SearchEvent(type="completed", search_id=search_id)
 
 
 async def search_marketplace(
@@ -92,11 +116,7 @@ async def search_marketplace(
                 search_id, platform, len(candidates), len(matches),
             )  # fmt: skip
             if not matches:
-                return MarketplaceResult(
-                    platform=platform,
-                    status=ResultStatus.NOT_LISTED,
-                    candidates_checked=len(candidates),
-                )
+                return not_listed(platform, product, candidates)
             result = pick_by_availability(matches)
             result.candidates_checked = len(candidates)
             return result
@@ -157,6 +177,23 @@ async def add_details(
         else:
             raise result
     return updated
+
+
+def not_listed(
+    platform: Platform, product: Product, candidates: list[Candidate]
+) -> MarketplaceResult:
+    """No exact match; keep the closest listing and why it was rejected, to explain it."""
+    result = MarketplaceResult(
+        platform=platform,
+        status=ResultStatus.NOT_LISTED,
+        candidates_checked=len(candidates),
+    )
+    if closest := closest_miss(product, candidates):
+        listing, match_result = closest
+        result.closest_listing = ClosestListing(
+            title=listing.title, url=listing.url, reasons=match_result.reasons
+        )
+    return result
 
 
 def pick_by_availability(matches: list[tuple[Candidate, MatchResult]]) -> MarketplaceResult:

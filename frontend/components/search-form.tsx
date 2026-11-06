@@ -3,15 +3,28 @@
 import { useState, type FormEvent } from "react";
 import { amazonUrlError } from "@/lib/validation";
 
+export interface Example {
+  label: string;
+  url: string;
+}
+
 export function SearchForm({
   onSearch,
   disabled,
+  examples,
 }: {
   onSearch: (url: string) => void;
   disabled: boolean;
+  examples: Example[];
 }) {
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const tryExample = (example: Example) => {
+    setUrl(example.url);
+    setError(null);
+    onSearch(example.url);
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -50,6 +63,20 @@ export function SearchForm({
           {error}
         </p>
       )}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-gray-500">Try:</span>
+        {examples.map((example) => (
+          <button
+            key={example.url}
+            type="button"
+            disabled={disabled}
+            onClick={() => tryExample(example)}
+            className="rounded-full border border-gray-300 bg-white px-3 py-1 text-gray-700 hover:border-gray-900 disabled:opacity-50"
+          >
+            {example.label}
+          </button>
+        ))}
+      </div>
     </form>
   );
 }

@@ -31,16 +31,21 @@ A failed search is never reported as `not_listed`.
 ## Flow
 
 ```
-POST /api/v1/search {amazon_url}  ->  202 {search_id}
-  background task:
-    1. Amazon extractor: fetch page, read title, breadcrumb (category), spec tables
-    2. For each marketplace of the category, concurrently:
-         search -> drop repeated listings
-         -> open up to 6 product pages of listings that could still match but lack
-            a required detail (colour) or a stock status
-         -> match every listing -> prefer in stock, then out of stock
-    3. Store results in the job store
-GET /api/v1/search/{search_id}  ->  {status, source_product, results}
+SearchOrchestrator.stream(search_id, amazon_url) yields events:
+  1. Amazon extractor: fetch page, read title, breadcrumb (category), spec tables
+     -> "product" event (with the marketplaces that will be searched)
+  2. For each marketplace of the category, concurrently:
+       search -> drop repeated listings
+       -> open up to 6 product pages of listings that could still match but lack
+          a required detail (colour) or a stock status
+       -> match every listing -> prefer in stock, then out of stock
+          (not listed: keep the closest listing and its rejection reasons)
+     -> one "result" event per marketplace, in the order they finish
+  3. "completed"; every step is also recorded in the job store
+
+POST /api/v1/search/stream {amazon_url}  ->  the events as NDJSON (used by the website)
+POST /api/v1/search {amazon_url}         ->  202 {search_id}, runs in the background
+GET  /api/v1/search/{search_id}          ->  {status, source_product, results so far}
 ```
 
 ## Matching rules

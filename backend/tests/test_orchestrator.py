@@ -45,6 +45,8 @@ async def test_not_listed_when_no_exact_match() -> None:
     result = await search_marketplace(adapter, PRODUCT)
     assert result.status == ResultStatus.NOT_LISTED
     assert result.candidates_checked == 1
+    assert result.closest_listing
+    assert result.closest_listing.reasons == ["Storage mismatch: expected 256 GB, found 512 GB"]
 
 
 async def test_unknown_availability_is_not_reported_as_in_or_out_of_stock() -> None:
@@ -158,3 +160,25 @@ async def test_marketplaces_run_concurrently_and_fail_independently(
         Platform.CROMA: ResultStatus.FAILED,
     }
     assert elapsed < 0.35  # both 0.2s searches ran at the same time
+
+
+async def test_stream_yields_results_in_the_order_marketplaces_finish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(
+        CATEGORY_PLATFORMS, Category.SMARTPHONE, [Platform.FLIPKART, Platform.CROMA]
+    )
+    adapters = {
+        Platform.FLIPKART: FakeAdapter(error=FailureReason.BLOCKED, delay=0.2),
+        Platform.CROMA: FakeAdapter(Platform.CROMA, error=FailureReason.BLOCKED, delay=0),
+    }
+    store = JobStore()
+    job = store.create(PRODUCT.url)
+    orchestrator = SearchOrchestrator(store, adapters, extract=fake_extract)
+
+    events = [e async for e in orchestrator.stream(job.search_id, PRODUCT.url)]
+
+    assert [e.type for e in events] == ["product", "result", "result", "completed"]
+    assert [e.result.platform for e in events if e.result] == [Platform.CROMA, Platform.FLIPKART]
+    saved = store.get(job.search_id)
+    assert saved and len(saved.results or []) == 2

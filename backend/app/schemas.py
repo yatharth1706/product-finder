@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -90,6 +91,14 @@ class MatchResult(BaseModel):
     reasons: list[str] = Field(default_factory=list)
 
 
+class ClosestListing(BaseModel):
+    """The listing that came closest when nothing matched, and why it was rejected."""
+
+    title: str
+    url: str
+    reasons: list[str]
+
+
 class MarketplaceResult(BaseModel):
     platform: Platform
     status: ResultStatus
@@ -101,6 +110,7 @@ class MarketplaceResult(BaseModel):
     candidates_checked: int = 0
     # The marketplace's own search page, so people can check for themselves.
     search_url: str | None = None
+    closest_listing: ClosestListing | None = None
 
 
 class SearchRequest(BaseModel):
@@ -115,4 +125,16 @@ class SearchJob(BaseModel):
     results: list[MarketplaceResult] | None = None
     created_at: datetime
     completed_at: datetime | None = None
+    error: str | None = None
+
+
+class SearchEvent(BaseModel):
+    """One step of a search, streamed to the client as it happens."""
+
+    type: Literal["accepted", "product", "result", "completed", "failed"]
+    search_id: str
+    product: Product | None = None
+    # Sent with the product: the marketplaces that will be searched.
+    platforms: list[Platform] | None = None
+    result: MarketplaceResult | None = None
     error: str | None = None

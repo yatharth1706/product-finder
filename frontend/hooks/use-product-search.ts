@@ -1,67 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { ApiError, createSearch, getSearch } from "@/lib/api";
-import type { SearchJob } from "@/lib/types";
+import { useCallback, useState } from "react";
+import { ApiError, streamSearch } from "@/lib/api";
+import type { MarketplaceResult, Platform, Product } from "@/lib/types";
 
-const POLL_INTERVAL_MS = 2000;
+export interface SearchState {
+  product: Product | null;
+  /** Marketplaces being searched, known as soon as the product is. */
+  platforms: Platform[];
+  results: Partial<Record<Platform, MarketplaceResult>>;
+  error: string | null;
+  running: boolean;
+}
+
+const EMPTY: SearchState = {
+  product: null,
+  platforms: [],
+  results: {},
+  error: null,
+  running: false,
+};
 
 export function useProductSearch() {
-  const [searchId, setSearchId] = useState<string | null>(null);
-  const [job, setJob] = useState<SearchJob | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [state, setState] = useState<SearchState>(EMPTY);
 
   const start = useCallback(async (amazonUrl: string) => {
-    setSearchId(null);
-    setSubmitting(true);
-    setError(null);
-    setJob(null);
+    setState({ ...EMPTY, running: true });
     try {
-      const created = await createSearch(amazonUrl);
-      if (isFinished(created)) {
-        setJob(created);
-      } else {
-        setSearchId(created.search_id);
-      }
+      await streamSearch(amazonUrl, (event) => {
+        setState((current) => {
+          switch (event.type) {
+            case "product":
+              return { ...current, product: event.product, platforms: event.platforms ?? [] };
+            case "result":
+              if (!event.result) return current;
+              return {
+                ...current,
+                results: { ...current.results, [event.result.platform]: event.result },
+              };
+            case "failed":
+              return { ...current, error: event.error, running: false };
+            case "completed":
+              return { ...current, running: false };
+            default:
+              return current;
+          }
+        });
+      });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      const message = err instanceof ApiError ? err.message : "Lost contact with the server";
+      setState((current) => ({ ...current, error: message }));
     } finally {
-      setSubmitting(false);
+      setState((current) => ({ ...current, running: false }));
     }
   }, []);
 
-  useEffect(() => {
-    if (!searchId) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-
-    const poll = async () => {
-      try {
-        const latest = await getSearch(searchId);
-        if (stopped) return;
-        setJob(latest);
-        if (isFinished(latest)) return;
-      } catch (err) {
-        if (stopped) return;
-        setError(err instanceof ApiError ? err.message : "Lost contact with the server");
-        return;
-      }
-      timer = setTimeout(poll, POLL_INTERVAL_MS);
-    };
-
-    poll();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [searchId]);
-
-  const running = submitting || (searchId !== null && !error && !(job && isFinished(job)));
-
-  return { job, error, running, start };
-}
-
-function isFinished(job: SearchJob) {
-  return job.status === "completed" || job.status === "failed";
+  return { ...state, start };
 }

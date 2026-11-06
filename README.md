@@ -55,6 +55,22 @@ curl localhost:8000/api/v1/search/<search_id>
 # -> {"status": "completed", "source_product": {...}, "results": [...]}
 ```
 
+The website uses the streaming form of the same search, which sends each step as
+soon as it is known (one JSON event per line):
+
+```bash
+curl -N -X POST localhost:8000/api/v1/search/stream \
+  -H 'content-type: application/json' \
+  -d '{"amazon_url": "https://www.amazon.in/dp/B0GWLJL55D"}'
+# {"type": "accepted", "search_id": "..."}
+# {"type": "product", "product": {...}, "platforms": ["flipkart", "croma"]}   ~2 s
+# {"type": "result", "result": {"platform": "croma", ...}}                   as each store finishes
+# {"type": "result", "result": {"platform": "flipkart", ...}}
+# {"type": "completed"}
+```
+
+A `not_listed` result includes the closest listing and why it was rejected.
+
 ## Deployment
 
 Both apps are on Vercel, as two projects:
@@ -64,11 +80,13 @@ Both apps are on Vercel, as two projects:
   `backend/vercel.json`) with `SEARCH_MODE=inline` and `CORS_ORIGINS` set to the
   frontend URL.
 
-`SEARCH_MODE=inline` makes `POST /api/v1/search` wait and return the finished
-search (about 5-10 seconds). Searches live in memory, and on serverless the next
-request may reach a different instance, so polling would not be reliable there.
-Locally and in Docker the default `background` mode returns at once and the
-frontend polls `GET /api/v1/search/{id}`. The frontend handles both.
+The website uses `POST /api/v1/search/stream`, which works the same on Vercel and
+locally because the whole search happens inside one request.
+
+For the polling API, `SEARCH_MODE=inline` makes `POST /api/v1/search` wait and
+return the finished search on Vercel: searches live in memory, and on serverless
+the next request may reach a different instance, so polling would not be reliable
+there. Locally and in Docker the default `background` mode returns at once.
 
 Both Vercel projects are connected to this repository (root directories
 `backend` and `frontend`), so every push to `main` deploys both.

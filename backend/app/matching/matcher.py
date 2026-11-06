@@ -122,6 +122,14 @@ def rank_matches(
     return sorted(exact, key=lambda pair: pair[1].score, reverse=True)
 
 
+def closest_miss(
+    source: Product, candidates: list[Candidate]
+) -> tuple[Candidate, MatchResult] | None:
+    """The best-scoring listing that is not an exact match, to explain a "not listed"."""
+    misses = [(c, r) for c in candidates if not (r := match(source, c)).matched]
+    return max(misses, key=lambda pair: pair[1].score, default=None)
+
+
 def brand_matches(source_brand: str, candidate: Candidate) -> bool:
     expected = normalize_brand(source_brand)
     if candidate.brand:

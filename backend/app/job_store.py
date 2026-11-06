@@ -29,9 +29,13 @@ class JobStore:
     def save_source_product(self, search_id: str, product: Product) -> None:
         self._jobs[search_id].source_product = product
 
-    def complete(self, search_id: str, results: list[MarketplaceResult]) -> None:
+    def add_result(self, search_id: str, result: MarketplaceResult) -> None:
         job = self._jobs[search_id]
-        job.results = results
+        job.results = [*(job.results or []), result]
+
+    def complete(self, search_id: str) -> None:
+        job = self._jobs[search_id]
+        job.results = job.results or []
         job.status = JobStatus.COMPLETED
         job.completed_at = datetime.now(UTC)
 
