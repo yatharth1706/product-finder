@@ -5,9 +5,10 @@ out of stock or not listed on Flipkart, Croma and Myntra.
 
 **Live:** https://product-finder-lyart.vercel.app (API: https://product-finder-api.vercel.app)
 
-Some stores refuse requests from cloud servers, so the live site reports
-"could not check" for Croma and Myntra. Run it locally to see every store; see
-[docs/access-check.md](docs/access-check.md).
+Stores block automated requests differently. The live site (on Vercel) reaches
+Amazon, Flipkart and Croma, but Myntra refuses cloud servers, so it shows
+"could not check" there. Run the backend locally to see Myntra, and see
+[docs/access-check.md](docs/access-check.md) for details.
 
 **How matching works, explained simply:** [docs/how-matching-works.md](docs/how-matching-works.md)
 

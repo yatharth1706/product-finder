@@ -67,7 +67,8 @@ GET /api/v1/search/{search_id}  ->  {status, source_product, results}
 
 ## Known limitations
 
-- Croma blocks server requests; it always reports `blocked`.
+- Myntra refuses cloud servers, so on the live site (Vercel) it reports `blocked`.
+  Croma refuses home connections but answers from Vercel.
 - Flipkart clothing titles rarely contain the model name ("PUMA Solid Men Polo Neck
   Blue T-Shirt"), so clothing is usually `not_listed` on Flipkart.
 - Myntra search results give one primary colour, so two colourways with the same
@@ -111,7 +112,7 @@ frontend/                 Next.js page: input, source product, result cards
 
 1. Access check + project skeleton.
 2. Smartphones end to end: Amazon -> Flipkart -> matching -> API -> basic UI.
-3. Croma (reports blocked), concurrent searches, partial failures.
+3. Croma, concurrent searches, partial failures.
 4. Televisions, sneakers, clothing; Myntra.
 5. Deploy, UI polish.
 6. "Explain it to a 5-year-old" matching document.

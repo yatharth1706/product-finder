@@ -116,7 +116,8 @@ there is one.
 
 ## Step 7: When a shop won't talk to us
 
-Sometimes a shop closes its door and won't let us look inside. Croma does this.
+Sometimes a shop closes its door and won't let us look inside. Myntra does this
+to our website's server, even though it lets people in from home.
 
 When that happens, we **don't** say "they don't have it", because we never
 got to look! We say:
