@@ -97,8 +97,12 @@ Lots of TVs have the same name, like *"Crystal 4K"*, but come in different
 sizes and years. So for TVs we check their **secret code**, the model number
 printed on the box, like `UA55M2EHAULXL`.
 
-The code must be **exactly** the same. `UA55UE85AHULXL` and `UA55UE83AHULXL`
-look almost the same, but they are different TVs, so we put that one back.
+The code must be **the same**. `UA55UE85AHULXL` and `UA55UE83AHULXL` look almost
+the same, but they are different TVs, so we put that one back.
+
+Some shops write a shorter code, like `43NU870` for `43NU870BPLA`. That still counts,
+because the short code is the start of the long one. It's like writing your name
+without your surname: still you.
 
 ## Step 6: Can you buy it?
 
@@ -108,21 +112,23 @@ now**.
 - 🟢 **In stock**: *"Yes! You can buy it."* We show you where.
 - 🟠 **Out of stock**: *"The shop has it, but it's all sold out right now."*
   We still show you where.
-- ⚪ **Not listed**: *"We looked through the whole pile, and this shop doesn't
-  have your toy."*
+- ⚪ **Not listed**: *"We looked through the pile the shop gave us, and your toy
+  isn't in it."* We also show you the toy that came closest and the sticker that
+  was different, like *"this one holds 512, yours holds 256"*.
 
 If a shop has the same toy in a few places, we show you one you can buy, if
 there is one.
 
 ## Step 7: When a shop won't talk to us
 
-Sometimes a shop closes its door and won't let us look inside. Myntra does this
-to our website's server, even though it lets people in from home.
+Sometimes a shop closes its door and won't let us look inside. Myntra won't let
+our website's computer in, and Croma won't let us in from a home computer.
 
 When that happens, we **don't** say "they don't have it", because we never
 got to look! We say:
 
 - 🔴 **Could not check**: *"The shop wouldn't let us in, so we don't know."*
+  We give you a button to look in that shop yourself.
 
 Saying "I don't know" is better than guessing wrong.
 

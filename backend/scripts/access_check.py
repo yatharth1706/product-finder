@@ -1,7 +1,9 @@
 """Check whether each marketplace answers plain HTTP requests from this machine.
 
 Run from any host you plan to deploy to:  uv run python scripts/access_check.py
-Datacenter IPs are blocked far more often than home connections.
+Stores treat home and cloud connections differently (Myntra blocks cloud servers,
+Croma blocks home connections), so results depend on where this runs.
+See docs/access-check.md.
 """
 
 import asyncio
@@ -16,14 +18,16 @@ HEADERS = {
     "Accept-Language": "en-IN,en;q=0.9",
 }
 
+# The same requests the adapters make, with a marker that only real results contain.
 CHECKS = {
     "amazon": ("https://www.amazon.in/dp/B0CS5XW6TN", "productTitle"),
     "flipkart": ("https://www.flipkart.com/search?q=samsung+galaxy+s24", "/p/itm"),
     "croma": (
-        "https://api.croma.com/searchservices/v1/search?currentPage=0&query=samsung&fields=FULL",
+        "https://api.croma.com/searchservices/v1/search?currentPage=0"
+        "&query=samsung%20galaxy%3Arelevance&fields=FULL&channel=WEB&channelCode=400049",
         '"products"',
     ),
-    "myntra": ("https://www.myntra.com/gateway/v2/search/nike%20shoes?rows=5", '"products"'),
+    "myntra": ("https://www.myntra.com/nike-shoes?rawQuery=nike%20shoes", "window.__myx"),
 }
 
 
@@ -38,8 +42,6 @@ async def check(client: httpx.AsyncClient, name: str, url: str, marker: str) -> 
 
 async def main() -> None:
     async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True, timeout=20) as client:
-        # Myntra's search API needs the session cookies its homepage sets.
-        await client.get("https://www.myntra.com/")
         await asyncio.gather(*(check(client, n, u, m) for n, (u, m) in CHECKS.items()))
 
 

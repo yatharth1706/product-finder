@@ -1,32 +1,52 @@
 # Marketplace access check
 
-Checked on 2026-11-05 from a home connection in India.
-Re-run from any deploy host with `cd backend && uv run python scripts/access_check.py`.
+Which stores answer the backend's requests, and from where. Re-run from any machine
+with `cd backend && uv run python scripts/access_check.py`, which sends the same
+requests as the adapters.
 
-| Site | Plain httpx | What works |
+## From a home connection in India
+
+Checked on 2026-11-05 and 2026-11-06.
+
+| Site | Result | What the backend reads |
 |---|---|---|
-| Amazon.in | OK | Product HTML has `#productTitle`, breadcrumb (category), `#productOverview_feature_div` (brand, RAM), `#availability`, `#landingImage`. Storage often only appears in the title. |
-| Flipkart | OK | Search HTML has one `div[data-id]` card per listing. Electronics cards carry spec bullets ("12 GB RAM \| 256 GB ROM", "Model ID: UA55...") and "Currently unavailable" when out of stock. Fashion cards carry brand and title but no colour. Product pages include schema.org Product data (JSON-LD) with colour and `InStock` / `OutOfStock`. |
-| Myntra | OK | The search page (`/nike-air-max-bia`) embeds its results as JSON (`window.__myx`): brand, `primaryColour`, `landingPageUrl` and per-size `inventoryInfo`. The JSON API (`/gateway/v2/search/...`) has the same data but needs session cookies from the homepage first. |
-| Croma | Blocked | Akamai returns 403 for httpx and for headless Chromium from a home connection. A real Chrome browser got through once and was blocked on the next request. |
+| Amazon.in | OK | Product HTML: `#productTitle`, breadcrumb (category), spec tables (`#productOverview_feature_div`, `table.prodDetTable`, detail bullets), the colour picker, `#landingImage`. Storage often appears only in the title. |
+| Flipkart | OK | Search HTML: one `div[data-id]` card per listing. Electronics cards carry spec bullets ("12 GB RAM \| 256 GB ROM", "Model ID: UA55...") and "Currently unavailable" when out of stock. Fashion cards carry brand and title but no colour. Product pages include schema.org Product data (JSON-LD) with colour and `InStock` / `OutOfStock`. |
+| Myntra | OK | The search page (`/nike-air-max-bia-shoes?rawQuery=...`) embeds its results as JSON (`window.__myx`): brand, `primaryColour`, `landingPageUrl` and per-size `inventoryInfo`. (The JSON API `/gateway/v2/search/...` has the same data but needs session cookies from the homepage first.) |
+| Croma | Blocked | Akamai returns 403 "Access Denied" for plain HTTP and for headless Chromium. A real Chrome browser got through once and was blocked on the next request. |
 
 ## From Vercel (Mumbai, `bom1`)
 
-Checked on 2026-11-05 against the deployed backend.
+Checked on 2026-11-05 and 2026-11-06 against the deployed backend.
 
 | Site | Result |
 |---|---|
 | Amazon.in | OK |
 | Flipkart | OK |
-| Croma | OK. The search API answers once `query` ends with `:relevance`, as on Croma's website (without it: HTTP 400 "Invalid Search Request"). Listings carry name, link, image, a shortened model code in `summary`, and `stockFlag` (stores holding stock; empty means out of stock). |
-| Myntra | Refused, for both the search page and the JSON API: returns a fake "Site Maintenance" page (HTTP 200) while the site works from a home connection. Reported as `blocked`. |
+| Croma | OK. The search API answers once `query` ends with `:relevance`, as on Croma's website (without it: HTTP 400 "Invalid Search Request"). Listings carry name, link, image, manufacturer, a shortened model code in `summary`, and `stockFlag` (the stores holding stock; empty means out of stock). |
+| Myntra | Refused, for both the search page and the JSON API: a fake "Site Maintenance" page (HTTP 200) while the site works from a home connection. Reported as `blocked`. |
 
 ## Decisions
 
-- Amazon, Flipkart, Myntra: plain httpx + BeautifulSoup / JSON. No Playwright needed.
-- Croma: the adapter calls the same search API as Croma's website. From a home
-  connection Akamai blocks it, which is reported as `blocked`; from Vercel it
-  answers. The parser was built from responses captured on Vercel and saved in
-  `backend/tests/fixtures/croma/`.
-- Datacenter IPs (Render, Railway, Fly) are blocked more often than home
-  connections, so the check must be repeated after deployment.
+- Every store is read with plain HTTP requests (httpx) and BeautifulSoup or JSON.
+  No headless browser is needed.
+- A refused request is reported as `blocked` and never as `not_listed`. Refusals are
+  recognised by status code (401, 403, 429, 503), by Akamai's "Access Denied" page,
+  and by Myntra's fake maintenance page.
+- No attempt is made to get around a block (rotating proxies, browser fingerprinting,
+  CAPTCHA solving). Blocked stores get a "Search on <store> yourself" link instead.
+- The Croma parser was built from real responses captured on Vercel, saved in
+  `backend/tests/fixtures/croma/`. Until then, every Croma request had been blocked
+  and the request format could not be checked.
+
+## How other projects handle this
+
+Open-source price comparison projects run into the same blocks:
+
+- Projects that read Myntra from a server route their requests through paid scraping
+  services (Scrape.do, Scrapingdog, Apify), which send them from residential
+  connections. That is deliberately getting around Myntra's bot protection, which
+  this project avoids.
+- Others run only locally, drive a real browser (Playwright), or drive the stores'
+  mobile apps on cloud phones.
+- At least one FastAPI project left Croma out entirely after hitting the same 403.
