@@ -11,7 +11,7 @@ from app.marketplaces.myntra import (
     parse_search_page,
     parse_search_results,
 )
-from app.schemas import Availability, FailureReason
+from app.schemas import Availability, Category, FailureReason
 from tests.conftest import read_fixture
 from tests.fakes import PRODUCT
 
@@ -69,8 +69,18 @@ async def test_maintenance_page_means_blocked(monkeypatch: pytest.MonkeyPatch) -
     assert exc.value.reason == FailureReason.BLOCKED
 
 
-def test_search_page_url_is_the_query_as_a_slug() -> None:
+def test_search_page_url_matches_myntras_search_box() -> None:
     product = PRODUCT.model_copy(update={"search_query": "PUMA ESS Zippered Placket Polo"})
     assert myntra.MyntraAdapter().search_page_url(product) == (
         "https://www.myntra.com/puma-ess-zippered-placket-polo"
+        "?rawQuery=PUMA%20ESS%20Zippered%20Placket%20Polo"
     )
+
+
+def test_sneaker_searches_name_the_product_type() -> None:
+    shoe = PRODUCT.model_copy(
+        update={"category": Category.SNEAKER, "search_query": "Campus Rustle"}
+    )
+    assert myntra.search_text(shoe) == "Campus Rustle Shoes"
+    already = shoe.model_copy(update={"search_query": "Nike Air Max Bia Sneakers"})
+    assert myntra.search_text(already) == "Nike Air Max Bia Sneakers"

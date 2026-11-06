@@ -1,11 +1,12 @@
 import json
 import re
 from typing import Any
+from urllib.parse import quote
 
 from app.errors import FetchError
 from app.http import fetch, make_client
 from app.marketplaces.base import MarketplaceAdapter
-from app.schemas import Availability, Candidate, FailureReason, Platform, Product
+from app.schemas import Availability, Candidate, Category, FailureReason, Platform, Product
 
 BASE_URL = "https://www.myntra.com"
 ALLOWED_HOSTS = {"myntra.com"}
@@ -19,14 +20,27 @@ class MyntraAdapter(MarketplaceAdapter):
     platform = Platform.MYNTRA
 
     def search_page_url(self, product: Product) -> str:
-        # Myntra's search URL is the query as a slug: /nike-air-max-bia
-        slug = re.sub(r"[^a-z0-9]+", "-", product.search_query.lower()).strip("-")
-        return f"{BASE_URL}/{slug}"
+        # Same format as Myntra's own search box: /campus-rustle-shoes?rawQuery=...
+        query = search_text(product)
+        slug = re.sub(r"[^a-z0-9]+", "-", query.lower()).strip("-")
+        return f"{BASE_URL}/{slug}?rawQuery={quote(query)}"
 
     async def search(self, product: Product) -> list[Candidate]:
         async with make_client(ALLOWED_HOSTS) as client:
             response = await fetch(client, self.search_page_url(product))
         return parse_search_page(response.text)
+
+
+def search_text(product: Product) -> str:
+    """Myntra's search needs the product type: "Campus Rustle" finds other Campus
+    shoes, "Campus Rustle Shoes" finds the Rustle. (Flipkart does worse with it,
+    so this stays here rather than in the shared query.)"""
+    query = product.search_query
+    if product.category == Category.SNEAKER and not re.search(
+        r"\b(shoes?|sneakers?)\b", query, re.I
+    ):
+        query += " Shoes"
+    return query
 
 
 def parse_search_page(html: str) -> list[Candidate]:
