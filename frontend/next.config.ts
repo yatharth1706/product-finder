@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "*.flixcart.com" },
       { protocol: "https", hostname: "assets.myntassets.com" },
-      { protocol: "https", hostname: "media-ik.croma.com" },
+      { protocol: "https", hostname: "media.tatacroma.com" },
     ],
   },
   cacheComponents: true,
