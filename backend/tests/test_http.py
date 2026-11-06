@@ -42,3 +42,18 @@ async def test_redirect_to_other_host_is_refused() -> None:
     async with client_for(handler) as client:
         with pytest.raises(FetchError, match="host not allowed"):
             await fetch(client, "https://api.croma.com/x")
+
+
+async def test_akamai_refusal_with_other_status_is_blocked() -> None:
+    page = "<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD> https://errors.edgesuite.net/18.x"
+    async with client_for(lambda request: httpx.Response(400, text=page)) as client:
+        with pytest.raises(FetchError) as exc:
+            await fetch(client, "https://api.croma.com/x")
+    assert exc.value.reason == FailureReason.BLOCKED
+
+
+async def test_other_errors_stay_unexpected() -> None:
+    async with client_for(lambda request: httpx.Response(500, text="oops")) as client:
+        with pytest.raises(FetchError) as exc:
+            await fetch(client, "https://api.croma.com/x")
+    assert exc.value.reason == FailureReason.UNEXPECTED

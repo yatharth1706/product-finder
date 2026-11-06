@@ -21,11 +21,12 @@ OUT_OF_STOCK_MARKERS = ("notify me", "sold out", "currently unavailable", "comin
 class FlipkartAdapter(MarketplaceAdapter):
     platform = Platform.FLIPKART
 
+    def search_page_url(self, product: Product) -> str:
+        return f"{BASE_URL}/search?q={quote_plus(product.search_query)}"
+
     async def search(self, product: Product) -> list[Candidate]:
         async with make_client(ALLOWED_HOSTS) as client:
-            response = await fetch(
-                client, f"{BASE_URL}/search?q={quote_plus(product.search_query)}"
-            )
+            response = await fetch(client, self.search_page_url(product))
         return parse_search_page(response.text)
 
     async def get_details(self, candidate: Candidate) -> Candidate:

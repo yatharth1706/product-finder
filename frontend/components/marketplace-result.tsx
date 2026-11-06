@@ -66,6 +66,19 @@ export function MarketplaceResult({ result }: { result: Result }) {
       {result.failure_reason && (
         <p className="text-sm text-gray-600">{FAILURE_MESSAGES[result.failure_reason]}</p>
       )}
+
+      {result.search_url && !result.url && (
+        <a
+          href={result.search_url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-gray-900 underline underline-offset-2"
+        >
+          {result.status === "failed"
+            ? `Search on ${PLATFORM_NAMES[result.platform]} yourself`
+            : `See the search on ${PLATFORM_NAMES[result.platform]}`}
+        </a>
+      )}
     </article>
   );
 }

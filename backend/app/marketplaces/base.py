@@ -16,6 +16,10 @@ class MarketplaceAdapter(ABC):
     async def search(self, product: Product) -> list[Candidate]:
         """Listings the marketplace returns for this product, best first."""
 
+    @abstractmethod
+    def search_page_url(self, product: Product) -> str:
+        """The marketplace's own search page for this product, for people to open."""
+
     async def get_details(self, candidate: Candidate) -> Candidate:
         """The listing with details its search result lacked (colour, stock), if any.
 

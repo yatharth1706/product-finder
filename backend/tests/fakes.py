@@ -52,6 +52,9 @@ class FakeAdapter(MarketplaceAdapter):
             raise FetchError(self.error)
         return self.candidates
 
+    def search_page_url(self, product: Product) -> str:
+        return f"https://{self.platform}.example/search"
+
     async def get_details(self, candidate: Candidate) -> Candidate:
         self.details_opened.append(candidate.url)
         availability = self.stock.get(candidate.url, Availability.UNKNOWN)

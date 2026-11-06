@@ -114,6 +114,7 @@ async def test_run_completes_job(monkeypatch: pytest.MonkeyPatch) -> None:
     assert saved and saved.status == JobStatus.COMPLETED
     assert saved.source_product == PRODUCT
     assert saved.results and saved.results[0].status == ResultStatus.OUT_OF_STOCK
+    assert saved.results[0].search_url == "https://flipkart.example/search"
     assert saved.completed_at
 
 

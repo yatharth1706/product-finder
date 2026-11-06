@@ -51,8 +51,17 @@ async def fetch(client: httpx.AsyncClient, url: str) -> httpx.Response:
     except httpx.HTTPError as exc:
         raise FetchError(FailureReason.UNEXPECTED, f"{type(exc).__name__} for {url}") from exc
 
-    if response.status_code in BLOCKED_STATUS_CODES:
-        raise FetchError(FailureReason.BLOCKED, f"HTTP {response.status_code} for {url}")
     if response.status_code >= 400:
-        raise FetchError(FailureReason.UNEXPECTED, f"HTTP {response.status_code} for {url}")
+        snippet = " ".join(response.text[:200].split())
+        detail = f"HTTP {response.status_code} for {url}: {snippet}"
+        if response.status_code in BLOCKED_STATUS_CODES or is_bot_protection_page(response):
+            raise FetchError(FailureReason.BLOCKED, detail)
+        raise FetchError(FailureReason.UNEXPECTED, detail)
     return response
+
+
+def is_bot_protection_page(response: httpx.Response) -> bool:
+    """Akamai, used by several stores, refuses with its own 'Access Denied' page."""
+    return response.headers.get("server", "").startswith("AkamaiGHost") or (
+        "Access Denied" in response.text and "edgesuite.net" in response.text
+    )

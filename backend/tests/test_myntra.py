@@ -67,3 +67,10 @@ async def test_maintenance_page_means_blocked(monkeypatch: pytest.MonkeyPatch) -
     with pytest.raises(FetchError) as exc:
         await myntra.MyntraAdapter().search(PRODUCT)
     assert exc.value.reason == FailureReason.BLOCKED
+
+
+def test_search_page_url_is_the_query_as_a_slug() -> None:
+    product = PRODUCT.model_copy(update={"search_query": "PUMA ESS Zippered Placket Polo"})
+    assert myntra.MyntraAdapter().search_page_url(product) == (
+        "https://www.myntra.com/puma-ess-zippered-placket-polo"
+    )

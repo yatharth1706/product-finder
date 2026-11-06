@@ -19,6 +19,10 @@ class CromaAdapter(MarketplaceAdapter):
 
     platform = Platform.CROMA
 
+    def search_page_url(self, product: Product) -> str:
+        query = quote(product.search_query)
+        return f"https://www.croma.com/searchB?q={query}%3Arelevance&text={query}"
+
     async def search(self, product: Product) -> list[Candidate]:
         query = quote(product.search_query)
         async with make_client(ALLOWED_HOSTS) as client:

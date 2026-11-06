@@ -34,6 +34,7 @@ export interface MarketplaceResult {
   match: MatchResult | null;
   failure_reason: FailureReason | null;
   candidates_checked: number;
+  search_url: string | null;
 }
 
 export interface SearchJob {

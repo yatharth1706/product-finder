@@ -70,6 +70,8 @@ class SearchOrchestrator:
         results = await asyncio.gather(
             *(search_marketplace(self.adapters[p], product, search_id) for p in platforms)
         )
+        for platform, result in zip(platforms, results, strict=True):
+            result.search_url = self.adapters[platform].search_page_url(product)
         self.store.complete(search_id, list(results))
         logger.info("search=%s completed in %.1fs", search_id, time.perf_counter() - started)
 

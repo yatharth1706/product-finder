@@ -18,11 +18,14 @@ class MyntraAdapter(MarketplaceAdapter):
 
     platform = Platform.MYNTRA
 
-    async def search(self, product: Product) -> list[Candidate]:
+    def search_page_url(self, product: Product) -> str:
         # Myntra's search URL is the query as a slug: /nike-air-max-bia
         slug = re.sub(r"[^a-z0-9]+", "-", product.search_query.lower()).strip("-")
+        return f"{BASE_URL}/{slug}"
+
+    async def search(self, product: Product) -> list[Candidate]:
         async with make_client(ALLOWED_HOSTS) as client:
-            response = await fetch(client, f"{BASE_URL}/{slug}")
+            response = await fetch(client, self.search_page_url(product))
         return parse_search_page(response.text)
 
 

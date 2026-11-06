@@ -99,6 +99,8 @@ class MarketplaceResult(BaseModel):
     match: MatchResult | None = None
     failure_reason: FailureReason | None = None
     candidates_checked: int = 0
+    # The marketplace's own search page, so people can check for themselves.
+    search_url: str | None = None
 
 
 class SearchRequest(BaseModel):
