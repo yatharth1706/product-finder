@@ -184,3 +184,16 @@ def test_sneaker_without_colour_is_never_a_match() -> None:
     assert not result.matched
     assert may_match(SNEAKER, shoe("Nike Air Max Bia Men's Shoes", None))
     assert not may_match(SNEAKER, shoe("Nike Air Max SC Men's Shoes", None))
+
+
+def test_tv_matches_store_shortened_model_number() -> None:
+    lg = TV.model_copy(update={"brand": "LG", "model": "43NU870BPLA"})
+    listing = tv_listing("43NU870")
+    listing.title = "LG NU870B 109.22 cm (55 inch) Nano Cell 4K Smart TV"
+    assert match(lg, listing).checks["model"]
+
+
+def test_short_model_number_must_be_a_real_prefix() -> None:
+    lg = TV.model_copy(update={"brand": "LG", "model": "43NU870BPLA"})
+    assert not match(lg, tv_listing("43NU885")).checks["model"]
+    assert not match(lg, tv_listing("43NU")).checks["model"]

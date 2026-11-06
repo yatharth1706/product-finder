@@ -172,12 +172,19 @@ def compare_models(
     return True, similarity, ""
 
 
+# Some stores list a shortened model number: Croma writes 43NU870 for LG's 43NU870BPLA.
+MIN_SHORT_MODEL_NUMBER = 7
+
+
 def compare_model_numbers(expected: str, found: str | None) -> tuple[bool, float, str]:
+    """Identical, or one is a shortened form that the other starts with."""
     if not found:
         return False, 0.0, f"Model number missing on listing: expected {expected}"
-    if normalize_model_number(expected) != normalize_model_number(found):
-        return False, 0.0, f"Model number mismatch: expected {expected}, found {found}"
-    return True, 100.0, ""
+    a, b = normalize_model_number(expected), normalize_model_number(found)
+    shorter, longer = sorted((a, b), key=len)
+    if a == b or (len(shorter) >= MIN_SHORT_MODEL_NUMBER and longer.startswith(shorter)):
+        return True, 100.0, ""
+    return False, 0.0, f"Model number mismatch: expected {expected}, found {found}"
 
 
 def compare_attribute(name: str, expected: str | None, found: str | None) -> tuple[bool, str]:

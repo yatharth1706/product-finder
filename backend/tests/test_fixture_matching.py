@@ -7,7 +7,7 @@ without the network.
 import json
 
 from app.extractors.amazon import parse_product_page
-from app.marketplaces import flipkart, myntra
+from app.marketplaces import croma, flipkart, myntra
 from app.matching.matcher import may_match, rank_matches
 from tests.conftest import read_fixture
 
@@ -72,3 +72,19 @@ def test_polo_on_myntra_with_abbreviated_model_name() -> None:
     data = json.loads(read_fixture("myntra/search_puma_polo.json"))
     matches = rank_matches(polo, myntra.parse_search_results(data))
     assert [c.title for c, _ in matches] == ["Puma Essential Men's Zippered Placket Polo"]
+
+
+def test_phone_on_croma_matches_storage_variant() -> None:
+    phone = amazon("phone_s25_ultra_in_stock.html")
+    listings = croma.parse_search_results(json.loads(read_fixture("croma/search_s25_ultra.json")))
+    matches = rank_matches(phone, listings)
+    assert matches
+    assert all("256GB" in c.title and "S25 Ultra" in c.title for c, _ in matches)
+
+
+def test_lite_variant_on_croma_is_rejected() -> None:
+    phone = amazon("phone_oneplus_nord_ce6.html")
+    listings = croma.parse_search_results(json.loads(read_fixture("croma/search_nord_ce6.json")))
+    matches = rank_matches(phone, listings)
+    assert matches
+    assert all("Lite" not in c.title and "256GB" in c.title for c, _ in matches)
