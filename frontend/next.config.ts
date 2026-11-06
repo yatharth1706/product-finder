@@ -2,13 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Product images come straight from the marketplaces' CDNs.
-    remotePatterns: [
-      { protocol: "https", hostname: "m.media-amazon.com" },
-      { protocol: "https", hostname: "*.flixcart.com" },
-      { protocol: "https", hostname: "assets.myntassets.com" },
-      { protocol: "https", hostname: "media.tatacroma.com" },
-    ],
+    // Load product images straight from the stores' CDNs. The backend already asks
+    // each CDN for a small size, so a resize hop through Vercel only adds latency.
+    unoptimized: true,
   },
   cacheComponents: true,
   partialPrefetching: true,

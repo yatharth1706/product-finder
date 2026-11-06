@@ -74,9 +74,16 @@ def to_candidate(item: dict[str, Any]) -> Candidate:
         brand=item.get("manufacturer"),
         model_number=code.group(0) if code else None,
         attributes=attributes,
-        image_url=image if isinstance(image, str) and image.startswith("https://") else None,
+        image_url=small_image(image),
         availability=availability_from_stock_locations(item.get("stockFlag")),
     )
+
+
+def small_image(url: object) -> str | None:
+    """Croma's image host resizes from the URL (`tr=w-200`); originals are up to 500 KB."""
+    if not isinstance(url, str) or not url.startswith("https://"):
+        return None
+    return f"{url}{'&' if '?' in url else '?'}tr=w-200"
 
 
 def availability_from_stock_locations(locations: object) -> Availability:

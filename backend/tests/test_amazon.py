@@ -120,3 +120,8 @@ def test_missing_storage_is_reported() -> None:
     html = read_fixture("amazon/phone_s25_ultra_in_stock.html").replace("256", "")
     with pytest.raises(ExtractionError, match="storage"):
         parse_product_page(html, URL)
+
+
+def test_product_image_is_requested_small() -> None:
+    product = parse_product_page(read_fixture("amazon/phone_s25_ultra_in_stock.html"), URL)
+    assert product.image_url and product.image_url.endswith("._SL300_.jpg")

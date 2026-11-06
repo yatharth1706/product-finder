@@ -115,9 +115,19 @@ def parse_product_page(html: str, url: str) -> Product:
         model=model,
         category=category,
         attributes=attributes,
-        image_url=image and (image.get("data-old-hires") or image.get("src")),
+        image_url=image and small_image(image.get("data-old-hires") or image.get("src")),
         search_query=build_search_query(category, title, brand, model),
     )
+
+
+def small_image(url: str | None) -> str | None:
+    """Amazon resizes images from the URL: '..._SL1500_.jpg' -> '..._SL300_.jpg'.
+
+    The page shows the image at about 100px, so the large original only slows it down.
+    """
+    if not url or not url.startswith("https://"):
+        return None
+    return re.sub(r"\._[A-Z0-9_,]+_\.(jpg|jpeg|png|webp)$", r"._SL300_.\1", url)
 
 
 def resolve_category(breadcrumbs: list[str], title: str) -> Category:

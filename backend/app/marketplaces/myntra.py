@@ -75,8 +75,20 @@ def to_candidate(item: dict[str, Any]) -> Candidate:
         title=item["productName"],
         brand=item.get("brand"),
         attributes={"colour": colour} if colour else {},
-        image_url=(item.get("searchImage") or "").replace("http://", "https://") or None,
+        image_url=small_image(item.get("searchImage")),
         availability=availability_from_sizes(item.get("inventoryInfo") or []),
+    )
+
+
+def small_image(url: str | None) -> str | None:
+    """Myntra resizes from the URL path: assets.myntassets.com/h_240,q_90,w_180/assets/..."""
+    if not url:
+        return None
+    url = url.replace("http://", "https://", 1)
+    return url.replace(
+        "https://assets.myntassets.com/assets/",
+        "https://assets.myntassets.com/h_240,q_90,w_180/assets/",
+        1,
     )
 
 

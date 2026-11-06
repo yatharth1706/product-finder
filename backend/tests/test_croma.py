@@ -38,3 +38,8 @@ def test_unexpected_response_is_an_error() -> None:
     with pytest.raises(FetchError) as exc:
         parse_search_results({"status": "BAD_REQUEST", "message": "Invalid Search Request"})
     assert exc.value.reason == FailureReason.PARSE_ERROR
+
+
+def test_images_are_requested_small() -> None:
+    first = results("search_s25_ultra.json")[0]
+    assert first.image_url and first.image_url.endswith("tr=w-200")

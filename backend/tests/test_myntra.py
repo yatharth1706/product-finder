@@ -84,3 +84,10 @@ def test_sneaker_searches_name_the_product_type() -> None:
     assert myntra.search_text(shoe) == "Campus Rustle Shoes"
     already = shoe.model_copy(update={"search_query": "Nike Air Max Bia Sneakers"})
     assert myntra.search_text(already) == "Nike Air Max Bia Sneakers"
+
+
+def test_images_are_requested_small() -> None:
+    data = json.loads(read_fixture("myntra/search_nike_air_max_bia.json"))
+    first = parse_search_results(data)[0]
+    assert first.image_url
+    assert first.image_url.startswith("https://assets.myntassets.com/h_240,q_90,w_180/assets/")
