@@ -35,6 +35,7 @@ export interface MarketplaceResult {
   status: ResultStatus;
   title: string | null;
   url: string | null;
+  model_number: string | null;
   image_url: string | null;
   match: MatchResult | null;
   failure_reason: FailureReason | null;

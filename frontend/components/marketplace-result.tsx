@@ -9,7 +9,13 @@ const BADGES: Record<ResultStatus, { label: string; className: string }> = {
   failed: { label: "Could not check", className: "bg-red-50 text-red-700" },
 };
 
-export function MarketplaceResult({ result }: { result: Result }) {
+export function MarketplaceResult({
+  result,
+  showModelNumber,
+}: {
+  result: Result;
+  showModelNumber: boolean;
+}) {
   const badge =
     result.failure_reason === "availability_unknown"
       ? { label: "Stock unknown", className: "bg-yellow-50 text-yellow-800" }
@@ -44,6 +50,11 @@ export function MarketplaceResult({ result }: { result: Result }) {
             >
               {result.title}
             </a>
+            {showModelNumber && result.model_number && (
+              <p className="mt-1 text-xs text-gray-700">
+                Model <span className="font-mono font-medium">{result.model_number}</span>
+              </p>
+            )}
             {result.match && (
               <p className="mt-1 text-xs text-gray-500">
                 Match score {result.match.score} ·{" "}

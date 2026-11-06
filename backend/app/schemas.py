@@ -104,6 +104,8 @@ class MarketplaceResult(BaseModel):
     status: ResultStatus
     title: str | None = None
     url: str | None = None
+    # The listing's model number, when the store gives one (televisions).
+    model_number: str | None = None
     image_url: str | None = None
     match: MatchResult | None = None
     failure_reason: FailureReason | None = None

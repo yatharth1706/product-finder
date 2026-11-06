@@ -56,7 +56,11 @@ export default function Home() {
           {platforms.map((platform) => {
             const result = results[platform];
             return result ? (
-              <MarketplaceResult key={platform} result={result} />
+              <MarketplaceResult
+                key={platform}
+                result={result}
+                showModelNumber={product?.category === "television"}
+              />
             ) : (
               <PendingResult key={platform} platform={platform} stopped={!running} />
             );

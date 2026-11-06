@@ -21,6 +21,9 @@ export function SourceProduct({ product }: { product: Product }) {
         <h2 className="mt-1 font-semibold">
           {product.brand} {product.model}
         </h2>
+        {product.category === "television" && (
+          <p className="text-xs text-gray-500">Matched by model number</p>
+        )}
         <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
           {Object.entries(product.attributes).map(([name, value]) => (
             <div key={name} className="flex gap-1">

@@ -223,6 +223,7 @@ def build_result(
         status=status,
         title=candidate.title,
         url=candidate.url,
+        model_number=candidate.model_number,
         image_url=candidate.image_url,
         match=match_result,
     )

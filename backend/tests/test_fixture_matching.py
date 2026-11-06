@@ -41,6 +41,16 @@ def test_tv_matches_exact_model_number_on_flipkart() -> None:
     assert {c.model_number for c, _ in matches} == {"UA55M2EHAULXL"}
 
 
+def test_tv_on_croma_matches_shortened_model_number() -> None:
+    tv = amazon("tv_samsung_mini_led.html").model_copy(
+        update={"brand": "LG", "model": "43NU870BPLA", "attributes": {"screen_size": "43 inch"}}
+    )
+    listings = croma.parse_search_results(json.loads(read_fixture("croma/search_lg_tv_43.json")))
+    matches = rank_matches(tv, listings)
+    assert [c.model_number for c, _ in matches] == ["43NU870"]
+    assert matches[0][0].title.startswith("LG NU870B 109.22 cm (43 inch)")
+
+
 def test_tv_with_close_model_numbers_is_not_listed() -> None:
     # Flipkart has the 55" UE83/UE84 and the 75" UE85, but not the 55" UE85.
     tv = amazon("tv_samsung_ue85.html")
