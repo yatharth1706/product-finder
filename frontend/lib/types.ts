@@ -1,4 +1,4 @@
-export type Platform = "flipkart" | "croma" | "reliance_digital" | "myntra";
+export type Platform = "flipkart" | "croma" | "myntra";
 export type JobStatus = "pending" | "processing" | "completed" | "failed";
 export type ResultStatus = "in_stock" | "out_of_stock" | "not_listed" | "failed";
 export type FailureReason =

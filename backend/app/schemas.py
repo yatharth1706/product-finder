@@ -14,7 +14,6 @@ class Category(StrEnum):
 class Platform(StrEnum):
     FLIPKART = "flipkart"
     CROMA = "croma"
-    RELIANCE_DIGITAL = "reliance_digital"
     MYNTRA = "myntra"
 
 

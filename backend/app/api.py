@@ -9,7 +9,6 @@ from app.job_store import JobStore
 from app.marketplaces.croma import CromaAdapter
 from app.marketplaces.flipkart import FlipkartAdapter
 from app.marketplaces.myntra import MyntraAdapter
-from app.marketplaces.reliance_digital import RelianceDigitalAdapter
 from app.orchestrator import SearchOrchestrator
 from app.schemas import Platform, SearchJob, SearchRequest
 
@@ -21,7 +20,6 @@ orchestrator = SearchOrchestrator(
     adapters={
         Platform.FLIPKART: FlipkartAdapter(),
         Platform.CROMA: CromaAdapter(),
-        Platform.RELIANCE_DIGITAL: RelianceDigitalAdapter(),
         Platform.MYNTRA: MyntraAdapter(),
     },
 )

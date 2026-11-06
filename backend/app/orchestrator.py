@@ -25,8 +25,8 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 CATEGORY_PLATFORMS: dict[Category, list[Platform]] = {
-    Category.SMARTPHONE: [Platform.FLIPKART, Platform.CROMA, Platform.RELIANCE_DIGITAL],
-    Category.TELEVISION: [Platform.FLIPKART, Platform.CROMA, Platform.RELIANCE_DIGITAL],
+    Category.SMARTPHONE: [Platform.FLIPKART, Platform.CROMA],
+    Category.TELEVISION: [Platform.FLIPKART, Platform.CROMA],
     Category.SNEAKER: [Platform.FLIPKART, Platform.MYNTRA],
     Category.CLOTHING: [Platform.FLIPKART, Platform.MYNTRA],
 }

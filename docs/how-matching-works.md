@@ -37,7 +37,7 @@ And some toys have extra stickers:
 Then we visit the right shops, all at the same time, like sending a friend to
 each shop:
 
-- Phones and TVs: **Flipkart**, **Croma** and **Reliance Digital**
+- Phones and TVs: **Flipkart** and **Croma**
 - Sneakers and T-shirts: **Flipkart** and **Myntra**
 
 In each shop we ask: *"Show me things like this!"* The shop gives us a pile of

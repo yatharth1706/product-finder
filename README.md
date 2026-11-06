@@ -1,7 +1,7 @@
 # Product Finder
 
 Paste an Amazon product link and see whether the same product is in stock,
-out of stock or not listed on Flipkart, Croma, Reliance Digital and Myntra.
+out of stock or not listed on Flipkart, Croma and Myntra.
 
 **Live:** https://product-finder-lyart.vercel.app (API: https://product-finder-api.vercel.app)
 

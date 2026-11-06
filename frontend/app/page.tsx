@@ -6,8 +6,8 @@ import { SourceProduct } from "@/components/source-product";
 import { useProductSearch } from "@/hooks/use-product-search";
 
 const CATEGORIES = [
-  ["Smartphones", "Flipkart, Croma, Reliance Digital"],
-  ["Televisions", "Flipkart, Croma, Reliance Digital"],
+  ["Smartphones", "Flipkart, Croma"],
+  ["Televisions", "Flipkart, Croma"],
   ["Sneakers", "Flipkart, Myntra"],
   ["T-shirts, polos, jerseys", "Flipkart, Myntra"],
 ];

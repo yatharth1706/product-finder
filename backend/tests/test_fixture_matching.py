@@ -7,7 +7,7 @@ without the network.
 import json
 
 from app.extractors.amazon import parse_product_page
-from app.marketplaces import flipkart, myntra, reliance_digital
+from app.marketplaces import flipkart, myntra
 from app.matching.matcher import may_match, rank_matches
 from tests.conftest import read_fixture
 
@@ -30,16 +30,6 @@ def test_phone_from_a_different_generation_is_not_listed() -> None:
     phone = amazon("phone_s24_ultra_unavailable.html")
     listings = flipkart.parse_search_page(read_fixture("flipkart/search_s25_ultra.html"))
     assert rank_matches(phone, listings) == []
-
-
-def test_phone_on_reliance_digital() -> None:
-    phone = amazon("phone_oneplus_nord_ce6.html")
-    listings = reliance_digital.parse_search_page(
-        read_fixture("reliance_digital/search_nord_ce6.html")
-    )
-    matches = rank_matches(phone, listings)
-    assert matches
-    assert all("Lite" not in c.title and "256 GB" in c.title for c, _ in matches)
 
 
 def test_tv_matches_exact_model_number_on_flipkart() -> None:
