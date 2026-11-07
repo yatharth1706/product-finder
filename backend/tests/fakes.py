@@ -38,12 +38,14 @@ class FakeAdapter(MarketplaceAdapter):
         stock: dict[str, Availability] | None = None,
         error: FailureReason | None = None,
         delay: float = 0,
+        details_error: FailureReason | None = None,
     ) -> None:
         self.platform = platform
         self.candidates = candidates or []
         self.stock = stock or {}
         self.error = error
         self.delay = delay
+        self.details_error = details_error
         self.details_opened: list[str] = []
 
     async def search(self, product: Product) -> list[Candidate]:
@@ -57,5 +59,7 @@ class FakeAdapter(MarketplaceAdapter):
 
     async def get_details(self, candidate: Candidate) -> Candidate:
         self.details_opened.append(candidate.url)
+        if self.details_error:
+            raise FetchError(self.details_error)
         availability = self.stock.get(candidate.url, Availability.UNKNOWN)
         return candidate.model_copy(update={"availability": availability})

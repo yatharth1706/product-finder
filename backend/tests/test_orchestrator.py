@@ -5,7 +5,15 @@ import pytest
 from app.errors import ExtractionError
 from app.job_store import JobStore
 from app.orchestrator import CATEGORY_PLATFORMS, SearchOrchestrator, search_marketplace
-from app.schemas import Availability, Category, FailureReason, JobStatus, Platform, ResultStatus
+from app.schemas import (
+    Availability,
+    Candidate,
+    Category,
+    FailureReason,
+    JobStatus,
+    Platform,
+    ResultStatus,
+)
 from tests.fakes import PRODUCT, FakeAdapter, listing
 
 
@@ -192,3 +200,45 @@ async def test_stream_yields_results_in_the_order_marketplaces_finish(
     assert [e.result.platform for e in events if e.result] == [Platform.CROMA, Platform.FLIPKART]
     saved = store.get(job.search_id)
     assert saved and len(saved.results or []) == 2
+
+
+SHOE = PRODUCT.model_copy(
+    update={
+        "title": "Nike Mens Air Max Bia Sneakers",
+        "brand": "Nike",
+        "model": "Air Max Bia",
+        "category": Category.SNEAKER,
+        "attributes": {"colour": "White/Black"},
+    }
+)
+
+
+def shoe_listing(colour_hint: str | None = None) -> Candidate:
+    return Candidate(
+        platform=Platform.FLIPKART,
+        url="https://www.flipkart.com/air-max-bia",
+        title="NIKE Air Max Bia Sneakers For Men",
+        brand="NIKE",
+        availability=Availability.IN_STOCK,
+        colour_hint=colour_hint,
+    )
+
+
+async def test_blocked_product_pages_are_not_reported_as_not_listed() -> None:
+    adapter = FakeAdapter(candidates=[shoe_listing()], details_error=FailureReason.BLOCKED)
+    result = await search_marketplace(adapter, SHOE)
+    assert result.status == ResultStatus.FAILED
+    assert result.failure_reason == FailureReason.BLOCKED
+
+
+async def test_colour_hint_is_used_when_the_page_is_blocked() -> None:
+    adapter = FakeAdapter(candidates=[shoe_listing("White")], details_error=FailureReason.BLOCKED)
+    result = await search_marketplace(adapter, SHOE)
+    assert result.status == ResultStatus.IN_STOCK
+
+
+async def test_product_pages_are_reused_between_searches() -> None:
+    adapter = FakeAdapter(candidates=[listing()])
+    await search_marketplace(adapter, PRODUCT)
+    await search_marketplace(adapter, PRODUCT)
+    assert adapter.details_opened == ["https://www.flipkart.com/s25"]

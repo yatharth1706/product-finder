@@ -89,6 +89,9 @@ class Candidate(BaseModel):
     model_number: str | None = None
     # True when the store lists a shortened model number (Croma: 43NU870 for 43NU870BPLA).
     model_number_shortened: bool = False
+    # The main colour, known only from the store's colour filter. Used when the exact
+    # colour could not be read from the product page.
+    colour_hint: str | None = None
     attributes: dict[str, str] = Field(default_factory=dict)
     image_url: str | None = None
     availability: Availability = Availability.UNKNOWN

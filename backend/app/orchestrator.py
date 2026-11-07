@@ -109,12 +109,15 @@ async def search_marketplace(
     try:
         async with asyncio.timeout(settings.marketplace_timeout_seconds):
             candidates = unique_by_url(await adapter.search(product))
-            candidates = await add_details(adapter, product, candidates)
+            candidates, page_failure = await add_details(adapter, product, candidates)
             matches = rank_matches(product, candidates)
             logger.info(
                 "search=%s %s candidates=%d exact=%d",
                 search_id, platform, len(candidates), len(matches),
             )  # fmt: skip
+            if not matches and page_failure:
+                # Pages that could have shown a match could not be opened: we don't know.
+                raise page_failure
             if not matches:
                 return not_listed(platform, product, candidates)
             result = pick_by_availability(matches)
@@ -148,63 +151,87 @@ def unique_by_url(candidates: list[Candidate]) -> list[Candidate]:
 # bursts (Flipkart answers 429), so keep both small.
 DETAIL_CONCURRENCY = 3
 STOCK_CHECKS = 3
+# Product pages already read are reused for a while, so repeating a search does not
+# hit the store again.
+DETAILS_CACHE_SECONDS = 15 * 60
+_details_cache: dict[str, tuple[float, Candidate]] = {}
 
 
 async def add_details(
     adapter: MarketplaceAdapter, product: Product, candidates: list[Candidate]
-) -> list[Candidate]:
+) -> tuple[list[Candidate], FetchError | None]:
     """Open product pages only where they can change the answer.
 
     If some listings already match exactly (phones and TVs: the search card has every
-    detail), only their stock is unknown: open them one at a time, best first, and stop
-    at the first one in stock. Otherwise (shoes: colour is only on the product page),
-    open the listings that could still match, a few at a time.
+    detail and the stock), stock is checked only for those still unknown, one page at a
+    time. Otherwise (shoes: colour is only on the product page), the listings that could
+    still match are opened a few at a time. A listing whose page could not be opened
+    falls back to its colour hint, if the store gave one.
+
+    Returns the listings and, if a page that could have changed the answer failed to
+    load, the error (so a blocked store is not reported as "not listed").
     """
     updated = list(candidates)
     position = {candidate.url: i for i, candidate in enumerate(candidates)}
+    failure: FetchError | None = None
+
+    async def open_page(candidate: Candidate) -> Candidate:
+        nonlocal failure
+        detailed, error = await get_details_cached(adapter, candidate)
+        failure = failure or error
+        return detailed
 
     exact = [candidate for candidate, _ in rank_matches(product, candidates)]
     if exact:
         if any(c.availability == Availability.IN_STOCK for c in exact):
-            return updated
+            return updated, None
         unknown = [c for c in exact if c.availability == Availability.UNKNOWN]
         for candidate in unknown[:STOCK_CHECKS]:
-            detailed = await get_details_or_keep(adapter, candidate)
+            detailed = await open_page(candidate)
             updated[position[candidate.url]] = detailed
             if detailed.availability == Availability.IN_STOCK:
                 break
-        return updated
+        return updated, None
 
+    required = required_attributes(product.category, product.brand)
     worth_opening = [
         c
         for c in candidates
         if may_match(product, c)
         and (
             c.availability == Availability.UNKNOWN
-            or any(
-                not c.attributes.get(name)
-                for name in required_attributes(product.category, product.brand)
-            )
+            or any(not c.attributes.get(name) for name in required)
         )
     ][: settings.max_detail_pages]
     limit = asyncio.Semaphore(DETAIL_CONCURRENCY)
 
-    async def open_page(candidate: Candidate) -> Candidate:
+    async def open_limited(candidate: Candidate) -> Candidate:
         async with limit:
-            return await get_details_or_keep(adapter, candidate)
+            return await open_page(candidate)
 
-    for detailed in await asyncio.gather(*(open_page(c) for c in worth_opening)):
+    for detailed in await asyncio.gather(*(open_limited(c) for c in worth_opening)):
+        if "colour" not in detailed.attributes and detailed.colour_hint:
+            detailed = detailed.model_copy(
+                update={"attributes": detailed.attributes | {"colour": detailed.colour_hint}}
+            )
         updated[position[detailed.url]] = detailed
-    return updated
+    return updated, failure
 
 
-async def get_details_or_keep(adapter: MarketplaceAdapter, candidate: Candidate) -> Candidate:
-    """A product page that fails to load leaves the listing as it was."""
+async def get_details_cached(
+    adapter: MarketplaceAdapter, candidate: Candidate
+) -> tuple[Candidate, FetchError | None]:
+    """The listing with its product page details; unchanged if the page failed to load."""
+    cached = _details_cache.get(candidate.url)
+    if cached and time.monotonic() - cached[0] < DETAILS_CACHE_SECONDS:
+        return cached[1], None
     try:
-        return await adapter.get_details(candidate)
+        detailed = await adapter.get_details(candidate)
     except FetchError as exc:
         logger.warning("%s details failed for %s: %s", adapter.platform, candidate.url, exc)
-        return candidate
+        return candidate, exc
+    _details_cache[candidate.url] = (time.monotonic(), detailed)
+    return detailed, None
 
 
 def not_listed(

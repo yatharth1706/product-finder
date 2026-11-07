@@ -1,8 +1,8 @@
 import pytest
 
 from app.errors import FetchError
-from app.marketplaces.flipkart import parse_product_page, parse_search_page
-from app.schemas import Availability, FailureReason
+from app.marketplaces.flipkart import card_availability, parse_product_page, parse_search_page
+from app.schemas import Availability, Category, FailureReason
 from tests.conftest import read_fixture
 
 
@@ -20,8 +20,15 @@ def test_parses_phone_search_results() -> None:
 def test_search_card_marks_out_of_stock() -> None:
     candidates = parse_search_page(read_fixture("flipkart/search_s25_ultra.html"))
     by_availability = {c.availability for c in candidates}
-    assert Availability.OUT_OF_STOCK in by_availability
-    assert Availability.UNKNOWN in by_availability
+    # "Currently unavailable" cards are out of stock; cards with a price are in stock.
+    assert by_availability == {Availability.OUT_OF_STOCK, Availability.IN_STOCK}
+
+
+def test_card_availability() -> None:
+    assert card_availability("Samsung Galaxy | ₹79,999") == Availability.IN_STOCK
+    assert card_availability("Currently unavailable | ₹79,999") == Availability.OUT_OF_STOCK
+    assert card_availability("Coming Soon") == Availability.OUT_OF_STOCK
+    assert card_availability("Samsung Galaxy") == Availability.UNKNOWN
 
 
 def test_ram_variants_are_kept_apart() -> None:
@@ -75,3 +82,26 @@ def test_product_page_without_schema_data_falls_back_to_page_text() -> None:
     assert parse_product_page("<button>Notify Me</button>") == (None, Availability.OUT_OF_STOCK)
     assert parse_product_page("<button>Buy Now</button>") == (None, Availability.IN_STOCK)
     assert parse_product_page("<p>Samsung phone</p>") == (None, Availability.UNKNOWN)
+
+
+def test_colour_filter_only_for_shoes_and_clothes() -> None:
+    from app.marketplaces.flipkart import colour_filter_name
+    from tests.fakes import PRODUCT
+
+    shoe = PRODUCT.model_copy(
+        update={"category": Category.SNEAKER, "attributes": {"colour": "WHITE/BLACK-WOLF GREY"}}
+    )
+    assert colour_filter_name(shoe) == "White"
+    assert colour_filter_name(shoe.model_copy(update={"attributes": {"colour": "Shimmer"}})) is None
+    assert colour_filter_name(PRODUCT) is None
+
+
+def test_phone_searches_name_ram_and_storage() -> None:
+    from app.marketplaces.flipkart import search_text
+    from tests.fakes import PRODUCT
+
+    assert search_text(PRODUCT) == "Samsung Galaxy S25 Ultra 12 GB RAM 256 GB"
+    tv = PRODUCT.model_copy(
+        update={"category": Category.TELEVISION, "search_query": "LG 43 inch TV"}
+    )
+    assert search_text(tv) == "LG 43 inch TV"

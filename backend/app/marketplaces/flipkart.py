@@ -7,8 +7,8 @@ from bs4 import BeautifulSoup, Tag
 from app.errors import FetchError
 from app.http import fetch, make_client
 from app.marketplaces.base import MarketplaceAdapter
-from app.matching.normalizer import normalize_screen_size, normalize_size
-from app.schemas import Availability, Candidate, FailureReason, Platform, Product
+from app.matching.normalizer import colour_families, normalize_screen_size, normalize_size
+from app.schemas import Availability, Candidate, Category, FailureReason, Platform, Product
 
 BASE_URL = "https://www.flipkart.com"
 ALLOWED_HOSTS = {"flipkart.com"}
@@ -17,17 +17,40 @@ ALLOWED_HOSTS = {"flipkart.com"}
 IN_STOCK_MARKERS = ("buy now", "add to cart")
 OUT_OF_STOCK_MARKERS = ("notify me", "sold out", "currently unavailable", "coming soon")
 
+# Search cards say this instead of a buyable price when a product cannot be bought.
+CARD_UNAVAILABLE_MARKERS = ("currently unavailable", "coming soon", "sold out", "out of stock")
+
+# Our basic colours -> the names of Flipkart's colour filter.
+COLOUR_FILTER_NAMES = {"multi": "Multicolor"}
+
 
 class FlipkartAdapter(MarketplaceAdapter):
     platform = Platform.FLIPKART
 
     def search_page_url(self, product: Product) -> str:
-        return f"{BASE_URL}/search?q={quote_plus(product.search_query)}"
+        return f"{BASE_URL}/search?q={quote_plus(search_text(product))}"
 
     async def search(self, product: Product) -> list[Candidate]:
         async with make_client(ALLOWED_HOSTS) as client:
             response = await fetch(client, self.search_page_url(product))
-        return parse_search_page(response.text)
+            candidates = parse_search_page(response.text)
+            # Shoe and clothing cards show no colour. The same search with Flipkart's
+            # colour filter tells which listings come in the product's main colour, in
+            # case their product pages cannot be opened (Flipkart rate-limits them).
+            colour = colour_filter_name(product)
+            if colour and candidates:
+                try:
+                    filtered = await fetch(
+                        client, f"{self.search_page_url(product)}{colour_filter(colour)}"
+                    )
+                    in_colour = {c.url for c in parse_search_page(filtered.text)}
+                except FetchError:
+                    in_colour = set()
+                candidates = [
+                    c.model_copy(update={"colour_hint": colour}) if c.url in in_colour else c
+                    for c in candidates
+                ]
+        return candidates
 
     async def get_details(self, candidate: Candidate) -> Candidate:
         async with make_client(ALLOWED_HOSTS) as client:
@@ -35,6 +58,30 @@ class FlipkartAdapter(MarketplaceAdapter):
         colour, availability = parse_product_page(response.text)
         attributes = candidate.attributes | ({"colour": colour} if colour else {})
         return candidate.model_copy(update={"attributes": attributes, "availability": availability})
+
+
+def search_text(product: Product) -> str:
+    """Flipkart's results for a phone name mix RAM and storage variants and change between
+    requests; naming them ("Samsung Galaxy M36 8 GB RAM 128 GB") puts the right one first."""
+    if product.category != Category.SMARTPHONE:
+        return product.search_query
+    ram, storage = product.attributes.get("ram"), product.attributes.get("storage")
+    parts = [product.search_query, f"{ram} RAM" if ram else "", storage or ""]
+    return " ".join(part for part in parts if part)
+
+
+def colour_filter_name(product: Product) -> str | None:
+    """Flipkart's colour filter name for the product's main colour ("White"), if any."""
+    if product.category not in (Category.SNEAKER, Category.CLOTHING):
+        return None
+    families = colour_families(product.attributes.get("colour", ""))
+    if not families:
+        return None
+    return COLOUR_FILTER_NAMES.get(families[0], families[0].capitalize())
+
+
+def colour_filter(colour: str) -> str:
+    return f"&p%5B%5D=facets.color%255B%255D%3D{quote_plus(colour)}"
 
 
 def parse_search_page(html: str) -> list[Candidate]:
@@ -75,12 +122,19 @@ def parse_card(card: Tag) -> Candidate | None:
         model_number=parse_model_id(specs),
         attributes=parse_card_attributes(title, specs),
         image_url=image.get("src") if image else None,
-        availability=(
-            Availability.OUT_OF_STOCK
-            if "currently unavailable" in card.get_text(" ").lower()
-            else Availability.UNKNOWN
-        ),
+        availability=card_availability(card.get_text(" ")),
     )
+
+
+def card_availability(text: str) -> Availability:
+    """A card that can't be bought says so ("Currently unavailable"); one that can shows
+    a price. Reading this from the search card saves opening the product page."""
+    text = text.lower()
+    if any(marker in text for marker in CARD_UNAVAILABLE_MARKERS):
+        return Availability.OUT_OF_STOCK
+    if "₹" in text:
+        return Availability.IN_STOCK
+    return Availability.UNKNOWN
 
 
 def clean_product_url(href: str) -> str:
