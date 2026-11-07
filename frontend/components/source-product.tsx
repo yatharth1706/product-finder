@@ -31,6 +31,12 @@ export function SourceProduct({ product }: { product: Product }) {
               <dd className="font-medium text-gray-900">{value}</dd>
             </div>
           ))}
+          {product.category === "smartphone" && product.brand.toLowerCase() === "apple" && (
+            <div className="flex gap-1">
+              <dt>RAM:</dt>
+              <dd className="text-gray-500">not published by Apple, so not compared</dd>
+            </div>
+          )}
         </dl>
         <a
           href={product.url}

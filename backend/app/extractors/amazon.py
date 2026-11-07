@@ -13,7 +13,7 @@ from app.matching.normalizer import (
     normalize_size,
     size_in_gb,
 )
-from app.schemas import REQUIRED_ATTRIBUTES, Category, FailureReason, Product
+from app.schemas import Category, FailureReason, Product, required_attributes
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ def parse_product_page(html: str, url: str) -> Product:
         raise ExtractionError(f"The Amazon page does not state the {label}")
 
     attributes = extract_attributes(category, title, specs, soup)
-    missing = [name for name in REQUIRED_ATTRIBUTES[category] if name not in attributes]
+    missing = [n for n in required_attributes(category, brand) if n not in attributes]
     if missing:
         labels = ", ".join(ATTRIBUTE_LABELS.get(name, name) for name in missing)
         raise ExtractionError(f"The Amazon page does not state the {labels}")
@@ -230,7 +230,11 @@ def extract_attributes(
     category: Category, title: str, specs: dict[str, str], soup: BeautifulSoup
 ) -> dict[str, str]:
     if category == Category.SMARTPHONE:
-        return extract_phone_attributes(title, specs)
+        attributes = extract_phone_attributes(title, specs)
+        # Not required for phones, but used to prefer the same colour among matches.
+        if colour := read_selected_colour(soup) or specs.get("colour"):
+            attributes["colour"] = colour
+        return attributes
     if category == Category.TELEVISION:
         size = normalize_screen_size(specs.get("screen size", "")) or normalize_screen_size(title)
         return {"screen_size": size} if size else {}

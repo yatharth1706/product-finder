@@ -10,7 +10,6 @@ from app.job_store import JobStore
 from app.marketplaces.base import MarketplaceAdapter
 from app.matching.matcher import closest_miss, may_match, rank_matches
 from app.schemas import (
-    REQUIRED_ATTRIBUTES,
     Availability,
     Candidate,
     Category,
@@ -22,6 +21,7 @@ from app.schemas import (
     Product,
     ResultStatus,
     SearchEvent,
+    required_attributes,
 )
 
 logger = logging.getLogger(__name__)
@@ -181,7 +181,10 @@ async def add_details(
         if may_match(product, c)
         and (
             c.availability == Availability.UNKNOWN
-            or any(not c.attributes.get(name) for name in REQUIRED_ATTRIBUTES[product.category])
+            or any(
+                not c.attributes.get(name)
+                for name in required_attributes(product.category, product.brand)
+            )
         )
     ][: settings.max_detail_pages]
     limit = asyncio.Semaphore(DETAIL_CONCURRENCY)

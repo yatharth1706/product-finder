@@ -57,7 +57,8 @@ def test_parses_smartphone_pages(
     product = parse_product_page(read_fixture(f"amazon/{fixture}"), URL)
     assert product.category == Category.SMARTPHONE
     assert (product.brand, product.model) == (brand, model)
-    assert product.attributes == {"ram": ram, "storage": storage}
+    assert (product.attributes["ram"], product.attributes["storage"]) == (ram, storage)
+    assert product.attributes.get("colour")  # used to rank matches in the same colour first
     assert product.image_url and product.image_url.startswith("https://")
 
 

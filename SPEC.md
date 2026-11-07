@@ -69,6 +69,9 @@ affects the others.
      ignored, numbers and variant words (Pro, Ultra, Max, Lite, FE, ...) must be
      identical, and the RapidFuzz similarity must be at least 92. A phone sold as 5G
      needs a listing that says 5G, because stores drop "4G" from 4G models' names.
+     Apple never publishes iPhone RAM (it is fixed per model), so Apple phones match on
+     model and storage. Among equal matches, one in the Amazon product's colour ranks
+     first.
    - Sneakers: every word of the model must appear in the listing's title, since
      stores add words ("Revolution 8 Road Running Shoes"). Numbers, variant words and
      gender (when both sides state one) must still be identical.
@@ -109,7 +112,6 @@ with every result. How each store responds from home and cloud connections is in
   Blue T-Shirt"), so clothing is usually `not_listed` on Flipkart.
 - Myntra search results give one main colour, so two colourways with the same main
   colour (white/black vs white/green) cannot be told apart there.
-- iPhones: Apple does not publish RAM, so the Amazon page fails extraction.
 - Croma's shortened model code is sometimes not a code at all (`BRAVIA2` for Sony's
   `K-43S22M2`), so that TV is missed on Croma.
 - Clothing listings often carry no model name, and stores do not show the brand's

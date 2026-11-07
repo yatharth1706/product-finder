@@ -23,7 +23,7 @@ CASES = [
     ("B0FDB9ZCTD", "Samsung Galaxy M36 8/128", {"flipkart": FOUND, "croma": NOT_LISTED}),
     ("B0CWPC2W5V", "Samsung Galaxy A55 12/256", {"flipkart": FOUND, "croma": NOT_LISTED}),
     ("B0GS5SM6JR", "REDMI A7 Pro 5G 4/64", {"flipkart": FOUND, "croma": NOT_LISTED}),
-    ("B0HJB3GZ2C", "Apple iPhone 18 Pro 512", {}),
+    ("B0HJB3GZ2C", "Apple iPhone 18 Pro 512", {"flipkart": FOUND}),
     ("B0H3KZHC8L", "vivo Y31 5G 6/128", {"flipkart": FOUND, "croma": NOT_LISTED}),
     ("B0F7X5FC43", "Sony BRAVIA 2M2 55in", {"flipkart": NOT_LISTED, "croma": FOUND}),
     ("B0F7WVPWG8", "Sony BRAVIA 2M2 43in", {"flipkart": FOUND, "croma": FOUND}),

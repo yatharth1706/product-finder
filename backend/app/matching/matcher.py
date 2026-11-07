@@ -23,7 +23,7 @@ from app.matching.normalizer import (
     normalize_size,
     normalize_text,
 )
-from app.schemas import REQUIRED_ATTRIBUTES, Candidate, Category, MatchResult, Product
+from app.schemas import Candidate, Category, MatchResult, Product, required_attributes
 
 BRAND_WEIGHT = 25
 MODEL_WEIGHT = 35
@@ -91,7 +91,7 @@ def match(source: Product, candidate: Candidate) -> MatchResult:
     else:
         reasons.append(model_reason)
 
-    required = REQUIRED_ATTRIBUTES[source.category]
+    required = required_attributes(source.category, source.brand)
     for name in required:
         ok, reason = compare_attribute(
             name, source.attributes.get(name), candidate.attributes.get(name)
@@ -115,7 +115,8 @@ def may_match(source: Product, candidate: Candidate) -> bool:
     result = match(source, candidate)
     failed = [name for name, ok in result.checks.items() if not ok]
     return all(
-        name in REQUIRED_ATTRIBUTES[source.category] and not candidate.attributes.get(name)
+        name in required_attributes(source.category, source.brand)
+        and not candidate.attributes.get(name)
         for name in failed
     )
 
@@ -125,11 +126,27 @@ def rank_matches(
 ) -> list[tuple[Candidate, MatchResult]]:
     """Only the listings that are exactly the product, best score first.
 
-    Ties keep the marketplace's own order, which is usually its relevance order.
+    Among equal scores, a listing in the Amazon product's colour comes first (it only
+    breaks ties: colour is not required for phones and TVs). Remaining ties keep the
+    marketplace's own order, which is usually its relevance order.
     """
     results = [(candidate, match(source, candidate)) for candidate in candidates]
     exact = [(candidate, result) for candidate, result in results if result.matched]
-    return sorted(exact, key=lambda pair: pair[1].score, reverse=True)
+    return sorted(
+        exact,
+        key=lambda pair: (pair[1].score, same_colour(source, pair[0])),
+        reverse=True,
+    )
+
+
+def same_colour(source: Product, candidate: Candidate) -> bool:
+    colour = source.attributes.get("colour")
+    if not colour:
+        return False
+    listed = candidate.attributes.get("colour")
+    if listed:
+        return colours_match(colour, listed)
+    return normalize_text(colour) in normalize_text(candidate.title)
 
 
 def closest_miss(

@@ -293,3 +293,50 @@ def test_unknown_brand_colour_names_match_on_the_main_colour_word() -> None:
     myntra = shoe_listing("Nike Court Vision Alta Women's Shoes", "White")
     assert match(alta, flipkart).matched
     assert not match(alta, myntra).matched
+
+
+IPHONE = Product(
+    url="https://www.amazon.in/dp/B0HJB3GZ2C",
+    title="iPhone 18 Pro (512 GB) - Silver",
+    brand="Apple",
+    model="iPhone 18 Pro",
+    category=Category.SMARTPHONE,
+    attributes={"storage": "512 GB", "colour": "Silver"},
+    search_query="Apple iPhone 18 Pro",
+)
+
+
+def iphone_listing(title: str, storage: str = "512 GB") -> Candidate:
+    return Candidate(
+        platform=Platform.FLIPKART,
+        url=f"https://www.flipkart.com/{title}",
+        title=title,
+        attributes={"storage": storage},
+    )
+
+
+def test_apple_phones_match_without_ram() -> None:
+    result = match(IPHONE, iphone_listing("Apple iPhone 18 Pro (Black, 512 GB)"))
+    assert result.matched
+    assert result.checks == {"brand": True, "model": True, "storage": True}
+
+
+def test_apple_phones_still_need_model_and_storage() -> None:
+    assert not match(
+        IPHONE, iphone_listing("Apple iPhone 18 Pro (Black, 256 GB)", "256 GB")
+    ).matched
+    assert not match(IPHONE, iphone_listing("Apple iPhone 18 Pro max (Black, 512 GB)")).matched
+    assert not match(IPHONE, iphone_listing("Apple iPhone 17 Pro (Black, 512 GB)")).matched
+
+
+def test_other_phones_still_need_ram() -> None:
+    listing = candidate("Samsung Galaxy S25 Ultra 5G (Black, 256 GB)", ram="")
+    assert match(SOURCE, listing).reasons == ["RAM missing on listing"]
+
+
+def test_matches_in_the_amazon_colour_rank_first() -> None:
+    listings = [
+        iphone_listing("Apple iPhone 18 Pro (Burgundy, 512 GB)"),
+        iphone_listing("Apple iPhone 18 Pro (Silver, 512 GB)"),
+    ]
+    assert rank_matches(IPHONE, listings)[0][0].title == "Apple iPhone 18 Pro (Silver, 512 GB)"

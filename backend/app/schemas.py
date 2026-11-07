@@ -55,6 +55,14 @@ REQUIRED_ATTRIBUTES: dict[Category, list[str]] = {
 }
 
 
+def required_attributes(category: Category, brand: str) -> list[str]:
+    """Attributes that must match for this product. Apple never publishes iPhone RAM
+    (it is fixed per model), so Apple phones match on model and storage."""
+    if category == Category.SMARTPHONE and brand.strip().lower() == "apple":
+        return ["storage"]
+    return REQUIRED_ATTRIBUTES[category]
+
+
 class Product(BaseModel):
     """The Amazon product we are looking for."""
 
