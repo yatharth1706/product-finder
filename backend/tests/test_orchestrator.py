@@ -242,3 +242,11 @@ async def test_product_pages_are_reused_between_searches() -> None:
     await search_marketplace(adapter, PRODUCT)
     await search_marketplace(adapter, PRODUCT)
     assert adapter.details_opened == ["https://www.flipkart.com/s25"]
+
+
+async def test_listings_in_the_products_colour_are_opened_first() -> None:
+    others = [shoe_listing().model_copy(update={"url": f"https://f/other-{i}"}) for i in range(8)]
+    hinted = shoe_listing("White").model_copy(update={"url": "https://f/white"})
+    adapter = FakeAdapter(candidates=[*others, hinted])
+    await search_marketplace(adapter, SHOE)
+    assert adapter.details_opened[0] == "https://f/white"

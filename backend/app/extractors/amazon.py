@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from app.errors import ExtractionError, FetchError, InvalidUrlError
 from app.http import fetch, host_allowed, make_client
 from app.matching.normalizer import (
+    clothing_name,
     find_sizes,
     model_from_title,
     normalize_screen_size,
@@ -223,7 +224,19 @@ def build_search_query(category: Category, title: str, brand: str, model: str) -
         # Marketplaces do not index model numbers well, so search by the product name:
         # "Samsung 55 inch (138cm) Crystal UHD 4K Vision AI 2026 Smart TV | ..." -> before "|".
         return re.split(r"[|,]", title, maxsplit=1)[0].strip()
+    if category == Category.CLOTHING:
+        # Search the identifying words plus the garment type: "Puma teamLIGA Jersey",
+        # not "PUMA teamLIGA Regular Fit Football".
+        return f"{brand} {clothing_name(model)} {garment_type(title)}"
     return f"{brand} {model}"
+
+
+def garment_type(title: str) -> str:
+    lowered = title.lower()
+    for word, label in (("jersey", "Jersey"), ("polo", "Polo")):
+        if word in lowered:
+            return label
+    return "T-Shirt"
 
 
 def extract_attributes(

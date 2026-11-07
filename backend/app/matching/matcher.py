@@ -13,6 +13,7 @@ The score only ranks listings that already passed every check.
 from rapidfuzz import fuzz
 
 from app.matching.normalizer import (
+    clothing_tokens,
     colours_match,
     gender_of,
     model_from_title,
@@ -67,6 +68,14 @@ def match(source: Product, candidate: Candidate) -> MatchResult:
     if source.category in MODEL_NUMBER_CATEGORIES:
         model_ok, similarity, model_reason = compare_model_numbers(
             source.model, candidate.model_number, candidate.model_number_shortened
+        )
+    elif source.category == Category.CLOTHING:
+        model_ok, similarity, model_reason = compare_clothing_models(
+            source.model,
+            candidate.title,
+            candidate.brand or source.brand,
+            gender_of(source.title),
+            gender_of(candidate.title),
         )
     elif source.category == Category.SNEAKER:
         model_ok, similarity, model_reason = compare_models_within_title(
@@ -248,6 +257,40 @@ def compare_models_within_title(
             f"Gender mismatch: expected {expected_gender}, found {found_gender}",
         )
     return True, similarity, ""
+
+
+def compare_clothing_models(
+    expected: str,
+    title: str,
+    brand: str,
+    expected_gender: str | None,
+    found_gender: str | None,
+) -> tuple[bool, float, str]:
+    """Clothing names are mostly description ("Men Solid Polo Neck Pure Cotton Slim Fit
+    T-Shirt"). After dropping description words, sizes and colours on both sides, the
+    identifying words must be the same: "TIRO 23 JSY Printed" matches "TIRO 23", but
+    "ESS Logo Graphic" does not match "ESS Logo"."""
+    expected_tokens = clothing_tokens(expected)
+    found_tokens = clothing_tokens(title) - model_tokens(brand)
+    similarity = fuzz.token_sort_ratio(
+        " ".join(sorted(expected_tokens)), " ".join(sorted(found_tokens))
+    )
+    if not expected_tokens:
+        return False, similarity, f"Model not stated on Amazon: {expected}"
+    if expected_tokens != found_tokens:
+        return False, similarity, f"Model mismatch: expected {expected}, found '{title}'"
+    if (
+        expected_gender
+        and found_gender
+        and "unisex" not in (expected_gender, found_gender)
+        and expected_gender != found_gender
+    ):
+        return (
+            False,
+            similarity,
+            f"Gender mismatch: expected {expected_gender}, found {found_gender}",
+        )
+    return True, 100.0, ""
 
 
 def compare_network(expected_title: str, found_title: str) -> tuple[bool, str]:

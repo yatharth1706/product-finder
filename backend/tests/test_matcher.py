@@ -340,3 +340,68 @@ def test_matches_in_the_amazon_colour_rank_first() -> None:
         iphone_listing("Apple iPhone 18 Pro (Silver, 512 GB)"),
     ]
     assert rank_matches(IPHONE, listings)[0][0].title == "Apple iPhone 18 Pro (Silver, 512 GB)"
+
+
+def top(title: str, model: str, colour: str, brand: str) -> Product:
+    return Product(
+        url="https://www.amazon.in/dp/X",
+        title=title,
+        brand=brand,
+        model=model,
+        category=Category.CLOTHING,
+        attributes={"colour": colour},
+        search_query=f"{brand} {model}",
+    )
+
+
+def top_listing(title: str, colour: str) -> Candidate:
+    return Candidate(
+        platform=Platform.MYNTRA,
+        url=f"https://www.myntra.com/{title}",
+        title=title,
+        attributes={"colour": colour},
+    )
+
+
+def test_clothing_ignores_description_words() -> None:
+    tiro = top("adidas Men TIRO 23 JSY Jerseys", "TIRO 23 JSY", "Blue", "adidas")
+    assert match(tiro, top_listing("ADIDAS TIRO 23 JSY Printed T-Shirt", "Blue")).matched
+    liga = top(
+        "teamLIGA Men's Regular Fit Football Jersey",
+        "teamLIGA Regular Fit Football",
+        "Pepper Green-White",
+        "PUMA",
+    )
+    assert match(liga, top_listing("Puma teamLIGA Striped Men's Football Jersey", "Green")).matched
+
+
+def test_clothing_extra_identifying_words_are_a_different_product() -> None:
+    polo = top(
+        "Puma Men's Solid Slim Fit Cotton Essential Polo T-Shirt",
+        "ESS Logo Polo",
+        "Team Regal Red",
+        "PUMA",
+    )
+    for title in [
+        "Puma Ess Badge Logo Printed Pure Cotton Slim Fit Polo",
+        "Puma Ess Logo Graphic Printed Pure Cotton Slim Fit Polo",
+    ]:
+        assert not match(polo, top_listing(title, "Red")).checks["model"], title
+    flipkart = top_listing("PUMA ESS Logo M Men Solid Polo Neck Pure Cotton Red T-Shirt", "Red")
+    assert match(polo, flipkart).matched
+
+
+def test_clothing_numbers_must_match() -> None:
+    levis = top(
+        "Levi's 025 Men's Premium Soft Cotton Solid T-Shirt",
+        "025 Premium Soft Cotton Solid",
+        "Black(Red)",
+        "Levi's",
+    )
+    assert match(
+        levis,
+        top_listing("LEVI'S 025 Premium Soft Cotton Solid Round Neck Men Black T-Shirt", "Black"),
+    ).matched
+    assert not match(
+        levis, top_listing("Levis Pack of 2 Pure Cotton Lounge T-Shirt", "Black")
+    ).matched

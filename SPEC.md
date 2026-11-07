@@ -75,6 +75,11 @@ affects the others.
    - Sneakers: every word of the model must appear in the listing's title, since
      stores add words ("Revolution 8 Road Running Shoes"). Numbers, variant words and
      gender (when both sides state one) must still be identical.
+   - Clothing names are mostly description ("Men Solid Polo Neck Pure Cotton Slim Fit
+     T-Shirt"). Description words, sizes and colours are dropped on both sides, and
+     the identifying words left must be the same: "TIRO 23 JSY Printed" matches
+     "TIRO 23", "ESS Logo Graphic" does not match "ESS Logo". Searches use those words
+     plus the garment type ("Puma teamLIGA Jersey").
    - Shoes and clothes take the model from the title, or from Amazon's "Model Name"
      when that reads like a name: stock codes (`M9166c-black-9`, `IU1397`) and
      trailing sizes ("ESS Logo Polo M") are ignored. Known brand abbreviations are
@@ -95,7 +100,7 @@ affects the others.
 
 | Store | Search | Stock |
 |---|---|---|
-| Flipkart | Search page HTML (one card per listing). Fashion cards have no colour, so it is read from the product page's schema.org data. | "Currently unavailable" on the card, or `InStock` / `OutOfStock` in the product page's schema.org data. |
+| Flipkart | Search page HTML (one card per listing); phone searches name RAM and storage. Fashion cards have no colour: it comes from the product page's schema.org data, and the same search with Flipkart's colour filter marks listings in the product's main colour, which are opened first and used as a fallback when a page is rate-limited. | From the search card: "Currently unavailable" is out of stock, a price is in stock. |
 | Croma | The search API Croma's website uses (query ending in `:relevance`). | `stockFlag`: the stores holding stock; empty means out of stock. |
 | Myntra | The search page's embedded results (`window.__myx`). Sneaker searches add "Shoes", which Myntra's search needs. | Stock per size: in stock if any size is available. |
 
@@ -114,8 +119,12 @@ with every result. How each store responds from home and cloud connections is in
   colour (white/black vs white/green) cannot be told apart there.
 - Croma's shortened model code is sometimes not a code at all (`BRAVIA2` for Sony's
   `K-43S22M2`), so that TV is missed on Croma.
-- Clothing listings often carry no model name, and stores do not show the brand's
-  style code, so many tops and jerseys are `not_listed`.
+- Clothing listings often carry no model name (Myntra's Levi's 025 is "Levis Men Soft
+  Pure Cotton Round Neck Tshirt"), and stores do not show the brand's style code, so
+  those tops are `not_listed`.
+- Flipkart rate-limits product pages from shared cloud addresses. Phones and TVs do not
+  need them; shoes and clothes fall back to the colour filter's main colour, and a
+  store whose needed pages were blocked reports `blocked`, never `not_listed`.
 - Only the first page of each store's search results is checked.
 - Jobs live in memory and are lost when the backend restarts.
 

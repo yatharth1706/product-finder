@@ -202,7 +202,11 @@ async def add_details(
             c.availability == Availability.UNKNOWN
             or any(not c.attributes.get(name) for name in required)
         )
-    ][: settings.max_detail_pages]
+    ]
+    # Listings the store's colour filter puts in the product's colour are the likeliest
+    # matches, so open those first.
+    worth_opening.sort(key=lambda c: c.colour_hint is None)
+    worth_opening = worth_opening[: settings.max_detail_pages]
     limit = asyncio.Semaphore(DETAIL_CONCURRENCY)
 
     async def open_limited(candidate: Candidate) -> Candidate:

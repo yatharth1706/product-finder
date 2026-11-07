@@ -182,7 +182,9 @@ def model_from_title(title: str, brand: str) -> str:
     """
     title = MODEL_BRACKET.sub(r" \1 ", title)
     # Cut at the first bracket, separator, "with" or size ("Nord CE6 5G 256 GB, ...").
-    head = re.split(r"[(|,\[]| with | - |\b\d+\s*(?:GB|TB)\b", title, maxsplit=1, flags=re.I)[0]
+    head = re.split(
+        r"[(|,\[]| with | - | – | — |\b\d+\s*(?:GB|TB)\b", title, maxsplit=1, flags=re.I
+    )[0]
     words = head.split()
     brand_words = normalize_text(brand).split()
     if [normalize_text(w) for w in words[: len(brand_words)]] == brand_words:
@@ -190,6 +192,37 @@ def model_from_title(title: str, brand: str) -> str:
     elif words and normalize_brand(words[0]) == normalize_brand(brand):
         words = words[1:]
     return " ".join(w for w in words if normalize_text(w) not in TITLE_NOISE_WORDS)
+
+
+# Words that describe a garment rather than name it. Clothing names are mostly these
+# ("Men Solid Polo Neck Pure Cotton Slim Fit T-Shirt"); the identifying words are the rest.
+CLOTHING_DESCRIPTION_WORDS = {
+    "round", "neck", "crew", "collar", "collared", "henley", "hooded", "zip",
+    "slim", "regular", "relaxed", "oversized", "fit", "fitted", "comfort",
+    "cotton", "pure", "blend", "polyester", "viscose", "linen", "dri", "dry",
+    "solid", "plain", "printed", "print", "striped", "stripes", "colorblock",
+    "colourblock", "self", "design", "pattern", "half", "full", "short", "long",
+    "sleeve", "sleeves", "sleeveless", "premium", "soft", "lightweight", "breathable",
+    "wear", "everyday", "football", "cricket", "gym", "top", "jsy", "replica",
+    "x", "and", "with", "the", "of",
+    "xs", "s", "m", "l", "xl", "xxl", "xxxl", "2xl", "3xl", "4xl",
+} | set(COLOUR_FAMILIES)  # fmt: skip
+
+
+def clothing_tokens(text: str) -> set[str]:
+    """Identifying words of a clothing name: model tokens minus description, sizes and
+    colours. 'TIRO 23 JSY Printed T-Shirt' -> {'tiro', '23'}."""
+    words = [w for w in normalize_text(text).split() if w not in CLOTHING_DESCRIPTION_WORDS]
+    return model_tokens(" ".join(words))
+
+
+def clothing_name(text: str) -> str:
+    """A clothing name without description words, for searching: keeps original casing."""
+    return " ".join(
+        w
+        for w in text.split()
+        if normalize_text(w) not in CLOTHING_DESCRIPTION_WORDS | TITLE_NOISE_WORDS
+    )
 
 
 def model_tokens(model: str) -> set[str]:
