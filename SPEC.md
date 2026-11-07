@@ -58,24 +58,31 @@ affects the others.
    ignored ("One Plus" == "OnePlus", "Redmi" == "Xiaomi").
 2. **Model** must match.
    - Televisions compare the manufacturer model number, because names like
-     "Crystal 4K" are shared across sizes and years. Numbers must be identical,
-     except that a shortened code of at least 7 characters that the full one starts
-     with also counts: Croma lists `43NU870` for LG's `43NU870BPLA`.
-   - Everything else compares the model name, read from the title (after the brand,
-     before the first bracket, separator or size), or from Amazon's "Model Name" for
-     shoes and clothing. Filler words ("5G", "Galaxy", "Smartphone", "Sneakers",
-     "Men's", "Polo") are ignored and known brand abbreviations are expanded (Puma's
-     "ESS" = "Essential"). Numbers and variant words (Pro, Ultra, Max, Lite, FE, ...)
-     must be identical, the gender must agree when both sides state one, and the
-     RapidFuzz similarity must be at least 92.
+     "Crystal 4K" are shared across sizes and years. Flipkart lists full model
+     numbers, which must be identical (`K-55S25B`, the 2024 model, is not
+     `K-55S25BM2`). Croma lists shortened ones (`43NU870` for `43NU870BPLA`,
+     `55S25M2` for `K-55S25BM2`): accepted when the short code's characters appear
+     in order in the full one and all its digits are the same.
+   - Phones compare the model name from the title (after the brand, before the first
+     bracket, separator or size). Filler words ("5G", "Galaxy", "Smartphone") are
+     ignored, numbers and variant words (Pro, Ultra, Max, Lite, FE, ...) must be
+     identical, and the RapidFuzz similarity must be at least 92. A phone sold as 5G
+     needs a listing that says 5G, because stores drop "4G" from 4G models' names.
+   - Sneakers: every word of the model must appear in the listing's title, since
+     stores add words ("Revolution 8 Road Running Shoes"). Numbers, variant words and
+     gender (when both sides state one) must still be identical.
+   - Shoes and clothes take the model from the title, or from Amazon's "Model Name"
+     when that reads like a name: stock codes (`M9166c-black-9`, `IU1397`) and
+     trailing sizes ("ESS Logo Polo M") are ignored. Known brand abbreviations are
+     expanded (Puma's "ESS" = "Essential").
 3. **Every category attribute** must be present on both sides and equal. A missing
    attribute is a failed check, never a pass.
    - RAM / storage: normalized sizes ("12GB RAM" == "12 GB").
    - Screen size: inches ("138 cm (55 inch)" == "55 Inches").
    - Colour: mapped to basic colours ("Desert Dust" -> beige, "Wolf Grey" -> grey,
-     adidas codes like "CGRANI" -> grey). The main colour must be equal, and when both
-     sides list several colours the sets must be equal. Unknown colour words never
-     match.
+     codes like adidas "CGRANI" or Skechers "MVE"). The main colour must be equal,
+     and when both sides list several colours the sets must be equal. Brand colour
+     names with no known colour word ("Shimmer") match only the same main word.
 4. **Score** (brand 25, model 35, attributes 40) only ranks listings that already
    passed every check. A high score never overrides a failed check.
 5. Every decision returns its checks and the reasons for any rejection.
@@ -102,6 +109,10 @@ with every result. How each store responds from home and cloud connections is in
 - Myntra search results give one main colour, so two colourways with the same main
   colour (white/black vs white/green) cannot be told apart there.
 - iPhones: Apple does not publish RAM, so the Amazon page fails extraction.
+- Croma's shortened model code is sometimes not a code at all (`BRAVIA2` for Sony's
+  `K-43S22M2`), so that TV is missed on Croma.
+- Clothing listings often carry no model name, and stores do not show the brand's
+  style code, so many tops and jerseys are `not_listed`.
 - Only the first page of each store's search results is checked.
 - Jobs live in memory and are lost when the backend restarts.
 
@@ -125,6 +136,7 @@ backend/app/
     matcher.py            per-category rules, score, reasons
   orchestrator.py         runs the search and streams its steps
 backend/scripts/          access_check.py: which stores answer from this machine
+                          benchmark.py: score against 20 hand-checked products
 backend/tests/            unit and fixture tests on saved pages and API responses
 frontend/                 Next.js page: search box, Amazon product, one card per store
 ```
