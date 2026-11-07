@@ -50,6 +50,18 @@ Checked on 2026-11-07 with the deployed backend. Fly takes no new machines in Mu
 | Croma | Blocked |
 | Myntra | No answer: every request times out (possibly because the machine is outside India) |
 
+## From Vultr (Mumbai, `bom`)
+
+Checked on 2026-11-07 from a test server (deleted afterwards), to see whether a
+provider with its own network and an Indian region gets through to Myntra.
+
+| Site | Result |
+|---|---|
+| Myntra | Refused: the same fake "Site Maintenance" page (HTTP 200, 483 bytes) as on AWS |
+
+Myntra refuses data-centre addresses whatever the provider or region, so moving the
+backend would not help. It only answers home connections.
+
 So the live site stays on Vercel (Croma works there) and only Flipkart product pages are
 read through the Fly copy of the backend (see the README).
 
