@@ -38,6 +38,7 @@ Stores treat home and cloud connections differently:
 | | Live site (Vercel) | Running on a home connection |
 |---|---|---|
 | Amazon, Flipkart | Works | Works |
+| Flipkart product pages | Works, through the Fly.io relay | Works |
 | Croma | Works | Blocked |
 | Myntra | Blocked | Works |
 
@@ -118,6 +119,15 @@ directories `backend` and `frontend`), so every push to `main` deploys both.
 - `backend/` runs FastAPI as a Vercel Function in Mumbai (`bom1`, see
   `backend/vercel.json`), with `CORS_ORIGINS` set to the frontend URL and
   `SEARCH_MODE=inline`.
+
+**Flipkart relay on Fly.io.** Flipkart rate-limits its product pages (HTTP 429) for
+Vercel's shared addresses, but not for a server with its own address. A second copy of
+the backend runs on Fly.io (Singapore, `backend/fly.toml`) and reads Flipkart product
+pages for the Vercel backend: set `FLIPKART_RELAY_URL` (the Fly app's URL) and
+`RELAY_TOKEN` (a shared secret, set on both) to turn it on. The relay route only reads
+Flipkart product pages, only with the token, and returns colour and stock. Without the
+settings, the backend reads Flipkart directly. Deploy the Fly copy with
+`cd backend && fly deploy --ha=false`.
 
 The streaming search works the same on Vercel as locally, because the whole search
 happens inside one request. The polling API is different: jobs live in memory, and

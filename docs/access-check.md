@@ -39,6 +39,20 @@ backend to an EC2 server would help.
 Same as Vercel, which also runs on AWS: Myntra refuses AWS addresses in general, so
 an EC2 server would not change anything.
 
+## From Fly.io (Singapore, `sin`)
+
+Checked on 2026-11-07 with the deployed backend. Fly takes no new machines in Mumbai.
+
+| Site | Result |
+|---|---|
+| Amazon.in, Flipkart search | OK |
+| Flipkart product pages | OK (rate-limited from Vercel) |
+| Croma | Blocked |
+| Myntra | No answer: every request times out (possibly because the machine is outside India) |
+
+So the live site stays on Vercel (Croma works there) and only Flipkart product pages are
+read through the Fly copy of the backend (see the README).
+
 ## Decisions
 
 - Every store is read with plain HTTP requests (httpx) and BeautifulSoup or JSON.

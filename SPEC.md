@@ -130,8 +130,10 @@ with every result. How each store responds from home and cloud connections is in
   Pure Cotton Round Neck Tshirt"), and stores do not show the brand's style code, so
   those tops are `not_listed`.
 - Flipkart rate-limits product pages from shared cloud addresses. Phones and TVs do not
-  need them; shoes and clothes fall back to the colour filter's main colour, and a
-  store whose needed pages were blocked reports `blocked`, never `not_listed`.
+  need them. Shoes and clothes read them through a relay: the same backend deployed on
+  Fly.io, which has its own address. Without the relay they fall back to the colour
+  filter's main colour, and a store whose needed pages were blocked reports `blocked`,
+  never `not_listed`.
 - Only the first page of each store's search results is checked.
 - Jobs live in memory and are lost when the backend restarts.
 
