@@ -105,3 +105,33 @@ def test_phone_searches_name_ram_and_storage() -> None:
         update={"category": Category.TELEVISION, "search_query": "LG 43 inch TV"}
     )
     assert search_text(tv) == "LG 43 inch TV"
+
+
+async def test_colour_filtered_search_adds_hints_and_listings(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import httpx
+
+    from app.http import make_client
+    from app.marketplaces import flipkart
+    from tests.fakes import PRODUCT
+
+    main_page = read_fixture("flipkart/search_puma_polo.html")
+    filtered_page = read_fixture("flipkart/search_nike_air_max_bia.html")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        filtered = "facets.color" in str(request.url)
+        return httpx.Response(200, text=filtered_page if filtered else main_page)
+
+    transport = httpx.MockTransport(answer)
+    monkeypatch.setattr(
+        flipkart, "make_client", lambda hosts: make_client(hosts, transport=transport)
+    )
+    shoe = PRODUCT.model_copy(
+        update={"category": Category.SNEAKER, "attributes": {"colour": "White"}}
+    )
+
+    candidates = await flipkart.FlipkartAdapter().search(shoe)
+
+    hinted = [c for c in candidates if c.colour_hint == "White"]
+    filtered_urls = {c.url for c in parse_search_page(filtered_page)}
+    assert hinted and {c.url for c in hinted} == filtered_urls
+    assert any("PUMA" in c.title and c.colour_hint is None for c in candidates)

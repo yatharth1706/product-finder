@@ -76,6 +76,8 @@ class Product(BaseModel):
     image_url: str | None = None
     # What we type into each marketplace's search box.
     search_query: str
+    # A broader search, tried when the first finds no exact match (matching stays strict).
+    fallback_query: str | None = None
 
 
 class Candidate(BaseModel):

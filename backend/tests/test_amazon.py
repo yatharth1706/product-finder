@@ -151,3 +151,12 @@ def test_iphone_category_from_the_spec_table() -> None:
 )
 def test_stock_codes_and_sizes_are_not_model_names(name: str, title: str, expected: str) -> None:
     assert readable_model_name(name, title) == expected
+
+
+def test_clothing_fallback_search_drops_numbers() -> None:
+    from app.extractors.amazon import build_fallback_query
+
+    query = "adidas Manchester United 24/25 Home Jersey"
+    assert build_fallback_query(Category.CLOTHING, query) == "adidas Manchester United Home Jersey"
+    assert build_fallback_query(Category.CLOTHING, "Puma teamLIGA Jersey") is None
+    assert build_fallback_query(Category.SMARTPHONE, "Samsung Galaxy S25 Ultra") is None

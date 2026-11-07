@@ -43,12 +43,21 @@ class FlipkartAdapter(MarketplaceAdapter):
                     filtered = await fetch(
                         client, f"{self.search_page_url(product)}{colour_filter(colour)}"
                     )
-                    in_colour = {c.url for c in parse_search_page(filtered.text)}
+                    in_colour = parse_search_page(filtered.text)
                 except FetchError:
-                    in_colour = set()
+                    in_colour = []
+                hinted = {c.url for c in in_colour}
                 candidates = [
-                    c.model_copy(update={"colour_hint": colour}) if c.url in in_colour else c
+                    c.model_copy(update={"colour_hint": colour}) if c.url in hinted else c
                     for c in candidates
+                ]
+                # Flipkart's results change between requests, so listings that only the
+                # colour-filtered search returned are candidates too.
+                seen = {c.url for c in candidates}
+                candidates += [
+                    c.model_copy(update={"colour_hint": colour})
+                    for c in in_colour
+                    if c.url not in seen
                 ]
         return candidates
 

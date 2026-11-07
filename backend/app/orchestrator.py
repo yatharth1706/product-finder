@@ -111,6 +111,12 @@ async def search_marketplace(
             candidates = unique_by_url(await adapter.search(product))
             candidates, page_failure = await add_details(adapter, product, candidates)
             matches = rank_matches(product, candidates)
+            if not matches and product.fallback_query:
+                broader = product.model_copy(update={"search_query": product.fallback_query})
+                more = unique_by_url(candidates + await adapter.search(broader))
+                candidates, more_failure = await add_details(adapter, product, more)
+                page_failure = page_failure or more_failure
+                matches = rank_matches(product, candidates)
             logger.info(
                 "search=%s %s candidates=%d exact=%d",
                 search_id, platform, len(candidates), len(matches),

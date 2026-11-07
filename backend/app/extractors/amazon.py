@@ -117,7 +117,8 @@ def parse_product_page(html: str, url: str) -> Product:
         category=category,
         attributes=attributes,
         image_url=image and small_image(image.get("data-old-hires") or image.get("src")),
-        search_query=build_search_query(category, title, brand, model),
+        search_query=(query := build_search_query(category, title, brand, model)),
+        fallback_query=build_fallback_query(category, query),
     )
 
 
@@ -229,6 +230,16 @@ def build_search_query(category: Category, title: str, brand: str, model: str) -
         # not "PUMA teamLIGA Regular Fit Football".
         return f"{brand} {clothing_name(model)} {garment_type(title)}"
     return f"{brand} {model}"
+
+
+def build_fallback_query(category: Category, query: str) -> str | None:
+    """Clothing searches without numbers: Myntra finds nothing for "Manchester United
+    24/25 Home Jersey" but finds the 24/25 jersey for "Manchester United Home Jersey".
+    The numbers are still checked when matching."""
+    if category != Category.CLOTHING:
+        return None
+    broader = " ".join(word for word in query.split() if not re.search(r"\d", word))
+    return broader if broader != query else None
 
 
 def garment_type(title: str) -> str:

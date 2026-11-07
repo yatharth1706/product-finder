@@ -250,3 +250,14 @@ async def test_listings_in_the_products_colour_are_opened_first() -> None:
     adapter = FakeAdapter(candidates=[*others, hinted])
     await search_marketplace(adapter, SHOE)
     assert adapter.details_opened[0] == "https://f/white"
+
+
+async def test_broader_search_is_tried_when_nothing_matches() -> None:
+    class TwoSearches(FakeAdapter):
+        async def search(self, product):  # type: ignore[no-untyped-def]
+            return [listing()] if product.search_query == "broader" else []
+
+    product = PRODUCT.model_copy(update={"fallback_query": "broader"})
+    adapter = TwoSearches(stock={"https://www.flipkart.com/s25": Availability.IN_STOCK})
+    result = await search_marketplace(adapter, product)
+    assert result.status == ResultStatus.IN_STOCK
