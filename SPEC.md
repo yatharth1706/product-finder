@@ -37,8 +37,9 @@ SearchOrchestrator.stream(search_id, amazon_url) yields events:
      -> "product" event, with the stores that will be searched
   2. For each store of the category, at the same time:
        search -> drop repeated listings
-       -> open up to 6 product pages, at the same time, for listings that could
-          still match but lack a required detail (colour) or a stock status
+       -> open product pages only where they change the answer: for exact
+          matches with unknown stock, one at a time until one is in stock (max 3);
+          for shoes missing their colour, up to 6, three at a time
        -> match every listing -> prefer one in stock, then one out of stock
      -> one "result" event per store, in the order the stores finish
   3. "completed"; every step is also recorded in the in-memory job store
