@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     # server, since jobs live in memory). "inline": POST waits and returns the finished
     # search, for serverless hosts where the next request may reach another instance.
     search_mode: Literal["background", "inline"] = "background"
+    # Flipkart rate-limits its product pages for shared cloud addresses (Vercel), but not
+    # for a server with its own address. When set, Flipkart product pages are read by the
+    # backend at this URL (the same app, deployed on Fly.io) instead of directly.
+    flipkart_relay_url: str = ""
+    # Shared secret between the two backends. The relay route is off when it is empty.
+    relay_token: str = ""
 
 
 settings = Settings()

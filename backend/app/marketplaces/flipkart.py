@@ -2,8 +2,10 @@ import json
 import re
 from urllib.parse import parse_qs, quote_plus, urlencode, urljoin, urlsplit
 
+import httpx
 from bs4 import BeautifulSoup, Tag
 
+from app.config import settings
 from app.errors import FetchError
 from app.http import fetch, make_client
 from app.marketplaces.base import MarketplaceAdapter
@@ -62,11 +64,55 @@ class FlipkartAdapter(MarketplaceAdapter):
         return candidates
 
     async def get_details(self, candidate: Candidate) -> Candidate:
-        async with make_client(ALLOWED_HOSTS) as client:
-            response = await fetch(client, candidate.url)
-        colour, availability = parse_product_page(response.text)
+        if settings.flipkart_relay_url and settings.relay_token:
+            colour, availability = await details_from_relay(candidate.url)
+        else:
+            colour, availability = await read_product_page(candidate.url)
         attributes = candidate.attributes | ({"colour": colour} if colour else {})
         return candidate.model_copy(update={"attributes": attributes, "availability": availability})
+
+
+async def read_product_page(url: str) -> tuple[str | None, Availability]:
+    """Colour and stock from a Flipkart product page (rate-limited from shared cloud IPs)."""
+    if not is_product_url(url):
+        raise FetchError(FailureReason.UNEXPECTED, f"not a Flipkart product page: {url}")
+    async with make_client(ALLOWED_HOSTS) as client:
+        response = await fetch(client, url)
+    return parse_product_page(response.text)
+
+
+async def details_from_relay(url: str) -> tuple[str | None, Availability]:
+    """Ask the relay backend (on its own address) to read the product page for us."""
+    relay = urlsplit(settings.flipkart_relay_url)
+    async with make_client({relay.hostname or ""}) as client:
+        try:
+            response = await client.get(
+                f"{settings.flipkart_relay_url.rstrip('/')}/api/v1/relay/flipkart-product",
+                params={"url": url},
+                headers={"X-Relay-Token": settings.relay_token},
+            )
+        except httpx.TimeoutException as exc:
+            raise FetchError(FailureReason.TIMEOUT, "Flipkart relay timed out") from exc
+        except httpx.HTTPError as exc:
+            raise FetchError(FailureReason.UNEXPECTED, f"Flipkart relay: {exc}") from exc
+    if response.status_code != 200:
+        reason = response.json().get("detail", "unexpected") if response.content else "unexpected"
+        known = {r.value for r in FailureReason}
+        raise FetchError(
+            FailureReason(reason) if reason in known else FailureReason.UNEXPECTED,
+            f"Flipkart relay answered {response.status_code}",
+        )
+    data = response.json()
+    return data.get("colour"), Availability(data.get("availability", "unknown"))
+
+
+def is_product_url(url: str) -> bool:
+    parts = urlsplit(url)
+    return (
+        parts.scheme == "https"
+        and (parts.hostname or "") in ("flipkart.com", "www.flipkart.com")
+        and "/p/" in parts.path
+    )
 
 
 def search_text(product: Product) -> str:

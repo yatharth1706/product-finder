@@ -1,0 +1,22 @@
+# Fly.io deployment of the backend, in Singapore (Mumbai takes no new machines). Experimental: tests whether stores that
+# refuse AWS addresses (Myntra, Flipkart product pages) answer from Fly's network.
+app = "product-finder-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CORS_ORIGINS = '["https://product-finder-lyart.vercel.app","http://localhost:3001"]'
+  LOG_LEVEL = "INFO"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

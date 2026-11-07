@@ -1,15 +1,16 @@
+import hmac
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
-from app.errors import InvalidUrlError
+from app.errors import FetchError, InvalidUrlError
 from app.extractors.amazon import validate_amazon_url
 from app.job_store import JobStore
 from app.marketplaces.croma import CromaAdapter
-from app.marketplaces.flipkart import FlipkartAdapter
+from app.marketplaces.flipkart import FlipkartAdapter, is_product_url, read_product_page
 from app.marketplaces.myntra import MyntraAdapter
 from app.orchestrator import SearchOrchestrator
 from app.schemas import Platform, SearchEvent, SearchJob, SearchRequest
@@ -87,6 +88,23 @@ async def stream_search(
         media_type="application/x-ndjson",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/relay/flipkart-product")
+async def relay_flipkart_product(
+    url: str, x_relay_token: Annotated[str, Header()] = ""
+) -> dict[str, str | None]:
+    """Colour and stock of one Flipkart product page, for the other deployment of this
+    backend. Only Flipkart product pages, only with the shared token: not an open proxy."""
+    if not settings.relay_token or not hmac.compare_digest(x_relay_token, settings.relay_token):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "forbidden")
+    if not is_product_url(url):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "only Flipkart product pages")
+    try:
+        colour, availability = await read_product_page(url)
+    except FetchError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, exc.reason.value) from exc
+    return {"colour": colour, "availability": availability.value}
 
 
 @router.get("/search/{search_id}")
