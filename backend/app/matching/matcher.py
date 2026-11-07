@@ -123,9 +123,16 @@ def may_match(source: Product, candidate: Candidate) -> bool:
     """
     result = match(source, candidate)
     failed = [name for name, ok in result.checks.items() if not ok]
+    # A store's shortened model number can't rule a TV out: its full number is unknown.
+    unverified_model = (
+        source.category in MODEL_NUMBER_CATEGORIES and candidate.model_number_shortened
+    )
     return all(
-        name in required_attributes(source.category, source.brand)
-        and not candidate.attributes.get(name)
+        (name == "model" and unverified_model)
+        or (
+            name in required_attributes(source.category, source.brand)
+            and not candidate.attributes.get(name)
+        )
         for name in failed
     )
 

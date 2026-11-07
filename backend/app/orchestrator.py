@@ -207,6 +207,7 @@ async def add_details(
         and (
             c.availability == Availability.UNKNOWN
             or any(not c.attributes.get(name) for name in required)
+            or c.model_number_shortened  # the product page has the full model number
         )
     ]
     # Listings the store's colour filter puts in the product's colour are the likeliest

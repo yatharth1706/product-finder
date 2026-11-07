@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.errors import FetchError
-from app.marketplaces.croma import parse_search_results
+from app.marketplaces.croma import parse_model_number, parse_search_results
 from app.schemas import Availability, Candidate, FailureReason
 from tests.conftest import read_fixture
 
@@ -43,3 +43,9 @@ def test_unexpected_response_is_an_error() -> None:
 def test_images_are_requested_small() -> None:
     first = results("search_s25_ultra.json")[0]
     assert first.image_url and first.image_url.endswith("tr=w-200")
+
+
+def test_full_model_number_from_the_product_page() -> None:
+    html = read_fixture("croma/product_tv_sony_k43s22m2.html")
+    assert parse_model_number(html) == "K-43S22M2"
+    assert parse_model_number("<html>no data</html>") is None

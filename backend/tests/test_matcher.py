@@ -405,3 +405,16 @@ def test_clothing_numbers_must_match() -> None:
     assert not match(
         levis, top_listing("Levis Pack of 2 Pure Cotton Lounge T-Shirt", "Black")
     ).matched
+
+
+def test_tv_with_an_unverified_short_code_may_still_match() -> None:
+    sony = TV.model_copy(
+        update={"brand": "Sony", "model": "K-43S22M2", "attributes": {"screen_size": "43 inch"}}
+    )
+    listing = tv_listing("BRAVIA2", screen_size="43 inch")
+    listing.title = "SONY BRAVIA 2 II 109 cm (43 inch) 4K Ultra HD LCD Smart Android TV"
+    listing.model_number_shortened = True
+    assert not match(sony, listing).matched
+    assert may_match(sony, listing)
+    listing.model_number_shortened = False
+    assert not may_match(sony, listing)

@@ -261,3 +261,44 @@ async def test_broader_search_is_tried_when_nothing_matches() -> None:
     adapter = TwoSearches(stock={"https://www.flipkart.com/s25": Availability.IN_STOCK})
     result = await search_marketplace(adapter, product)
     assert result.status == ResultStatus.IN_STOCK
+
+
+async def test_tv_page_is_opened_for_the_full_model_number() -> None:
+    tv = PRODUCT.model_copy(
+        update={
+            "title": "Sony 108 cm (43 inches) BRAVIA 2M2 Series 4K Smart LED Google TV",
+            "brand": "Sony",
+            "model": "K-43S22M2",
+            "category": Category.TELEVISION,
+            "attributes": {"screen_size": "43 inch"},
+        }
+    )
+    full_numbers = {"https://c/315862": "K-43S25M2", "https://c/316033": "K-43S22M2"}
+
+    class Croma(FakeAdapter):
+        async def get_details(self, candidate):  # type: ignore[no-untyped-def]
+            self.details_opened.append(candidate.url)
+            return candidate.model_copy(
+                update={
+                    "model_number": full_numbers[candidate.url],
+                    "model_number_shortened": False,
+                }
+            )
+
+    listings = [
+        Candidate(
+            platform=Platform.CROMA,
+            url=url,
+            title="SONY BRAVIA 2 II 109 cm (43 inch) 4K Ultra HD LCD Smart Android TV",
+            brand="Sony",
+            model_number="BRAVIA2",
+            model_number_shortened=True,
+            attributes={"screen_size": "43 inch"},
+            availability=Availability.IN_STOCK,
+        )
+        for url in full_numbers
+    ]
+    result = await search_marketplace(Croma(Platform.CROMA, candidates=listings), tv)
+    assert result.status == ResultStatus.IN_STOCK
+    assert result.url == "https://c/316033"
+    assert result.model_number == "K-43S22M2"

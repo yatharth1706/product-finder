@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any
 from urllib.parse import quote
@@ -16,6 +17,7 @@ SEARCH_API = (
     "?currentPage=0&query={query}%3Arelevance&fields=FULL&channel=WEB&channelCode=400049"
 )
 ALLOWED_HOSTS = {"croma.com"}
+PAGE_STATE_MARKER = "window.__INITIAL_DATA__="
 
 # "(12GB RAM, 256GB, Titanium Gray)": the size not followed by "RAM" is storage.
 RAM_PATTERN = re.compile(r"(\d+(?:\.\d+)?\s*(?:GB|MB|TB))\s*RAM", re.I)
@@ -45,6 +47,52 @@ class CromaAdapter(MarketplaceAdapter):
         except ValueError as exc:
             raise FetchError(FailureReason.PARSE_ERROR, "Croma search was not JSON") from exc
         return parse_search_results(data)
+
+    async def get_details(self, candidate: Candidate) -> Candidate:
+        """Croma's search gives a shortened model number, sometimes not a code at all
+        ("BRAVIA2"); the product page has the full one ("K-43S22M2")."""
+        if not candidate.model_number_shortened:
+            return candidate
+        async with make_client(ALLOWED_HOSTS) as client:
+            response = await fetch(client, candidate.url)
+        model_number = parse_model_number(response.text)
+        if not model_number:
+            return candidate
+        return candidate.model_copy(
+            update={"model_number": model_number, "model_number_shortened": False}
+        )
+
+
+def parse_model_number(html: str) -> str | None:
+    """The "Model Number" in the product page's embedded data (window.__INITIAL_DATA__)."""
+    start = html.find(PAGE_STATE_MARKER)
+    if start < 0:
+        return None
+    # The embedded data is a JavaScript object: `undefined` is not valid JSON.
+    text = re.sub(r":undefined\b", ":null", html[start + len(PAGE_STATE_MARKER) :].lstrip())
+    try:
+        state, _ = json.JSONDecoder().raw_decode(text)
+    except json.JSONDecodeError:
+        return None
+    return find_feature(state, "Model Number")
+
+
+def find_feature(data: Any, name: str) -> str | None:
+    """The first value of a specification feature called `name`, anywhere in the data."""
+    if isinstance(data, dict):
+        if data.get("name") == name:
+            values = [v.get("value") for v in data.get("featureValues") or [] if v.get("value")]
+            if values:
+                return values[0]
+        children = data.values()
+    elif isinstance(data, list):
+        children = data
+    else:
+        return None
+    for child in children:
+        if found := find_feature(child, name):
+            return found
+    return None
 
 
 def parse_search_results(data: dict[str, Any]) -> list[Candidate]:
