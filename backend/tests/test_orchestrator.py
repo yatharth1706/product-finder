@@ -57,10 +57,20 @@ async def test_unknown_availability_is_not_reported_as_in_or_out_of_stock() -> N
     assert result.url == "https://www.flipkart.com/s25"
 
 
-async def test_product_pages_opened_are_bounded() -> None:
+async def test_stock_checks_are_bounded() -> None:
     adapter = FakeAdapter(candidates=[listing(url=f"https://f/{i}") for i in range(10)])
     await search_marketplace(adapter, PRODUCT)
-    assert len(adapter.details_opened) == 6
+    assert len(adapter.details_opened) == 3
+
+
+async def test_stock_checks_stop_at_the_first_in_stock() -> None:
+    adapter = FakeAdapter(
+        candidates=[listing(url=f"https://f/{i}") for i in range(5)],
+        stock={"https://f/0": Availability.OUT_OF_STOCK, "https://f/1": Availability.IN_STOCK},
+    )
+    result = await search_marketplace(adapter, PRODUCT)
+    assert adapter.details_opened == ["https://f/0", "https://f/1"]
+    assert result.status == ResultStatus.IN_STOCK
 
 
 async def test_pages_of_known_mismatches_are_not_opened() -> None:

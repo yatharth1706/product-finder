@@ -1,7 +1,12 @@
 import pytest
 
 from app.errors import ExtractionError, InvalidUrlError
-from app.extractors.amazon import parse_product_page, validate_amazon_url
+from app.extractors.amazon import (
+    parse_product_page,
+    readable_model_name,
+    resolve_category,
+    validate_amazon_url,
+)
 from app.schemas import Category
 from tests.conftest import read_fixture
 
@@ -125,3 +130,23 @@ def test_missing_storage_is_reported() -> None:
 def test_product_image_is_requested_small() -> None:
     product = parse_product_page(read_fixture("amazon/phone_s25_ultra_in_stock.html"), URL)
     assert product.image_url and product.image_url.endswith("._SL300_.jpg")
+
+
+def test_iphone_category_from_the_spec_table() -> None:
+    specs = {"operating system": "iOS", "generic name": "iPhone"}
+    assert resolve_category([], "iPhone 18 Pro (512 GB) - Silver", specs) == Category.SMARTPHONE
+
+
+@pytest.mark.parametrize(
+    ("name", "title", "expected"),
+    [
+        ("M9166c-black-9", "Converse Unisex Chuck Taylor All Star Sneakers", ""),
+        ("IU1397", "adidas x Manchester United 24/25 Home Jersey", ""),
+        ("704917_SMU_1_1999_Teamliga Jersey", "teamLIGA Men's Regular Fit Football Jersey", ""),
+        ("ESS Logo Polo M", "Puma Men's Solid Slim Fit Cotton Essential Polo", "ESS Logo Polo"),
+        ("Drogo M", "adidas Men Drogo M Running Shoe", "Drogo M"),
+        ("Revolution 8", "Nike Mens Revolution 8 Running Shoes", "Revolution 8"),
+    ],
+)
+def test_stock_codes_and_sizes_are_not_model_names(name: str, title: str, expected: str) -> None:
+    assert readable_model_name(name, title) == expected

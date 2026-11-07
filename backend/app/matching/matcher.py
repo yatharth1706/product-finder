@@ -66,7 +66,15 @@ def match(source: Product, candidate: Candidate) -> MatchResult:
 
     if source.category in MODEL_NUMBER_CATEGORIES:
         model_ok, similarity, model_reason = compare_model_numbers(
-            source.model, candidate.model_number
+            source.model, candidate.model_number, candidate.model_number_shortened
+        )
+    elif source.category == Category.SNEAKER:
+        model_ok, similarity, model_reason = compare_models_within_title(
+            source.model,
+            candidate.title,
+            candidate.brand or source.brand,
+            gender_of(source.title),
+            gender_of(candidate.title),
         )
     else:
         model_ok, similarity, model_reason = compare_models(
@@ -75,6 +83,8 @@ def match(source: Product, candidate: Candidate) -> MatchResult:
             gender_of(source.title),
             gender_of(candidate.title),
         )
+    if model_ok and source.category == Category.SMARTPHONE:
+        model_ok, model_reason = compare_network(source.title, candidate.title)
     checks["model"] = model_ok
     if model_ok:
         score += MODEL_WEIGHT * similarity / 100
@@ -180,19 +190,79 @@ def compare_models(
     return True, similarity, ""
 
 
-# Some stores list a shortened model number: Croma writes 43NU870 for LG's 43NU870BPLA.
-MIN_SHORT_MODEL_NUMBER = 7
+# Shortest model number accepted as a shortened form (Croma writes 43NU870 for 43NU870BPLA).
+MIN_SHORT_MODEL_NUMBER = 6
 
 
-def compare_model_numbers(expected: str, found: str | None) -> tuple[bool, float, str]:
-    """Identical, or one is a shortened form that the other starts with."""
+def compare_models_within_title(
+    expected: str,
+    title: str,
+    brand: str,
+    expected_gender: str | None,
+    found_gender: str | None,
+) -> tuple[bool, float, str]:
+    """Shoe listings add words to the model ("Revolution 8 Road Running Shoes",
+    "Chuck Taylor All Star Casuals"), so every word of the Amazon model must appear in
+    the listing's title; numbers and variant words must still be identical."""
+    expected_tokens = model_tokens(expected)
+    found_tokens = model_tokens(title) - model_tokens(brand)
+    similarity = fuzz.token_sort_ratio(
+        " ".join(sorted(expected_tokens)), " ".join(sorted(found_tokens))
+    )
+    reason = f"Model mismatch: expected {expected}, found '{title}'"
+    if not expected_tokens or not expected_tokens <= found_tokens:
+        return False, similarity, reason
+
+    expected_numbers = {t for t in expected_tokens if t[0].isdigit()}
+    found_numbers = {t for t in found_tokens if t[0].isdigit()}
+    if expected_numbers != found_numbers:
+        return False, similarity, reason
+    if expected_tokens & VARIANT_WORDS != found_tokens & VARIANT_WORDS:
+        return False, similarity, f"Model variant mismatch: expected {expected}, found '{title}'"
+    if (
+        expected_gender
+        and found_gender
+        and "unisex" not in (expected_gender, found_gender)
+        and expected_gender != found_gender
+    ):
+        return (
+            False,
+            similarity,
+            f"Gender mismatch: expected {expected_gender}, found {found_gender}",
+        )
+    return True, similarity, ""
+
+
+def compare_network(expected_title: str, found_title: str) -> tuple[bool, str]:
+    """A phone sold as 5G must be listed as 5G: stores often drop "4G" from a 4G model's name."""
+    if (
+        "5g" in normalize_text(expected_title).split()
+        and "5g" not in normalize_text(found_title).split()
+    ):
+        return False, "Network mismatch: the Amazon product is 5G, the listing does not say 5G"
+    return True, ""
+
+
+def compare_model_numbers(
+    expected: str, found: str | None, found_is_shortened: bool = False
+) -> tuple[bool, float, str]:
+    """Identical, or, for a store that shortens model numbers, a fair short form of it."""
     if not found:
         return False, 0.0, f"Model number missing on listing: expected {expected}"
-    a, b = normalize_model_number(expected), normalize_model_number(found)
-    shorter, longer = sorted((a, b), key=len)
-    if a == b or (len(shorter) >= MIN_SHORT_MODEL_NUMBER and longer.startswith(shorter)):
+    full, listed = normalize_model_number(expected), normalize_model_number(found)
+    if full == listed or (found_is_shortened and is_shortened_form(listed, full)):
         return True, 100.0, ""
     return False, 0.0, f"Model number mismatch: expected {expected}, found {found}"
+
+
+def is_shortened_form(short: str, full: str) -> bool:
+    """Croma writes 43NU870 for 43NU870BPLA and 55S25M2 for K55S25BM2: the short code's
+    characters appear in order in the full one, and all of its digits are the same."""
+    digits = lambda code: "".join(c for c in code if c.isdigit())  # noqa: E731
+    if len(short) < MIN_SHORT_MODEL_NUMBER or digits(short) != digits(full):
+        return False
+    remaining = iter(full)
+    return all(char in remaining for char in short)
 
 
 def compare_attribute(name: str, expected: str | None, found: str | None) -> tuple[bool, str]:

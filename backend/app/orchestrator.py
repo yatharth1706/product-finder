@@ -144,39 +144,64 @@ def unique_by_url(candidates: list[Candidate]) -> list[Candidate]:
     return unique
 
 
+# Product pages opened at once, and stock checks per marketplace. Stores rate-limit
+# bursts (Flipkart answers 429), so keep both small.
+DETAIL_CONCURRENCY = 3
+STOCK_CHECKS = 3
+
+
 async def add_details(
     adapter: MarketplaceAdapter, product: Product, candidates: list[Candidate]
 ) -> list[Candidate]:
-    """Open the product pages of the few listings that could still be an exact match
-    but lack a required detail or a stock status. Pages are fetched concurrently."""
+    """Open product pages only where they can change the answer.
+
+    If some listings already match exactly (phones and TVs: the search card has every
+    detail), only their stock is unknown: open them one at a time, best first, and stop
+    at the first one in stock. Otherwise (shoes: colour is only on the product page),
+    open the listings that could still match, a few at a time.
+    """
+    updated = list(candidates)
+    position = {candidate.url: i for i, candidate in enumerate(candidates)}
+
+    exact = [candidate for candidate, _ in rank_matches(product, candidates)]
+    if exact:
+        if any(c.availability == Availability.IN_STOCK for c in exact):
+            return updated
+        unknown = [c for c in exact if c.availability == Availability.UNKNOWN]
+        for candidate in unknown[:STOCK_CHECKS]:
+            detailed = await get_details_or_keep(adapter, candidate)
+            updated[position[candidate.url]] = detailed
+            if detailed.availability == Availability.IN_STOCK:
+                break
+        return updated
+
     worth_opening = [
-        i
-        for i, candidate in enumerate(candidates)
-        if may_match(product, candidate)
+        c
+        for c in candidates
+        if may_match(product, c)
         and (
-            candidate.availability == Availability.UNKNOWN
-            or any(
-                not candidate.attributes.get(name) for name in REQUIRED_ATTRIBUTES[product.category]
-            )
+            c.availability == Availability.UNKNOWN
+            or any(not c.attributes.get(name) for name in REQUIRED_ATTRIBUTES[product.category])
         )
     ][: settings.max_detail_pages]
-    if not worth_opening:
-        return candidates
+    limit = asyncio.Semaphore(DETAIL_CONCURRENCY)
 
-    detailed = await asyncio.gather(
-        *(adapter.get_details(candidates[i]) for i in worth_opening), return_exceptions=True
-    )
-    updated = list(candidates)
-    for i, result in zip(worth_opening, detailed, strict=True):
-        if isinstance(result, Candidate):
-            updated[i] = result
-        elif isinstance(result, FetchError):
-            logger.warning(
-                "%s details failed for %s: %s", adapter.platform, candidates[i].url, result
-            )
-        else:
-            raise result
+    async def open_page(candidate: Candidate) -> Candidate:
+        async with limit:
+            return await get_details_or_keep(adapter, candidate)
+
+    for detailed in await asyncio.gather(*(open_page(c) for c in worth_opening)):
+        updated[position[detailed.url]] = detailed
     return updated
+
+
+async def get_details_or_keep(adapter: MarketplaceAdapter, candidate: Candidate) -> Candidate:
+    """A product page that fails to load leaves the listing as it was."""
+    try:
+        return await adapter.get_details(candidate)
+    except FetchError as exc:
+        logger.warning("%s details failed for %s: %s", adapter.platform, candidate.url, exc)
+        return candidate
 
 
 def not_listed(

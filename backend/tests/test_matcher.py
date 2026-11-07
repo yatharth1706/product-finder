@@ -59,20 +59,22 @@ def test_extra_model_word_is_rejected() -> None:
 
 
 def test_ram_mismatch() -> None:
-    result = match(SOURCE, candidate("Samsung Galaxy S25 Ultra (Black, 256 GB)", ram="8 GB"))
+    result = match(SOURCE, candidate("Samsung Galaxy S25 Ultra 5G (Black, 256 GB)", ram="8 GB"))
     assert not result.matched
     assert result.reasons == ["RAM mismatch: expected 12 GB, found 8 GB"]
 
 
 def test_storage_mismatch() -> None:
-    result = match(SOURCE, candidate("Samsung Galaxy S25 Ultra (Black, 512 GB)", storage="512 GB"))
+    result = match(
+        SOURCE, candidate("Samsung Galaxy S25 Ultra 5G (Black, 512 GB)", storage="512 GB")
+    )
     assert not result.matched
     assert result.score == 80
     assert result.reasons == ["Storage mismatch: expected 256 GB, found 512 GB"]
 
 
 def test_missing_attribute_is_never_a_match() -> None:
-    result = match(SOURCE, candidate("Samsung Galaxy S25 Ultra (Black)", storage=""))
+    result = match(SOURCE, candidate("Samsung Galaxy S25 Ultra 5G (Black)", storage=""))
     assert not result.matched
     assert result.checks["storage"] is False
     assert result.reasons == ["Storage missing on listing"]
@@ -80,9 +82,9 @@ def test_missing_attribute_is_never_a_match() -> None:
 
 def test_rank_keeps_only_exact_matches_in_order() -> None:
     listings = [
-        candidate("Samsung Galaxy S25 Ultra (Black, 512 GB)", storage="512 GB"),
-        candidate("Samsung Galaxy S25 Ultra (Black, 256 GB)"),
-        candidate("Samsung S25 Ultra (Gray, 256 GB)"),
+        candidate("Samsung Galaxy S25 Ultra 5G (Black, 512 GB)", storage="512 GB"),
+        candidate("Samsung Galaxy S25 Ultra 5G (Black, 256 GB)"),
+        candidate("Samsung S25 Ultra 5G (Gray, 256 GB)"),
     ]
     ranked = rank_matches(SOURCE, listings)
     assert [c.title for c, _ in ranked] == [listings[1].title, listings[2].title]
@@ -153,6 +155,16 @@ SNEAKER = Product(
 )
 
 
+def shoe_listing(title: str, colour: str, brand: str = "Nike") -> Candidate:
+    return Candidate(
+        platform=Platform.FLIPKART,
+        url="https://www.flipkart.com/shoe",
+        title=title,
+        brand=brand,
+        attributes={"colour": colour},
+    )
+
+
 def shoe(title: str, colour: str | None) -> Candidate:
     return Candidate(
         platform=Platform.MYNTRA,
@@ -189,11 +201,95 @@ def test_sneaker_without_colour_is_never_a_match() -> None:
 def test_tv_matches_store_shortened_model_number() -> None:
     lg = TV.model_copy(update={"brand": "LG", "model": "43NU870BPLA"})
     listing = tv_listing("43NU870")
+    listing.model_number_shortened = True
     listing.title = "LG NU870B 109.22 cm (55 inch) Nano Cell 4K Smart TV"
     assert match(lg, listing).checks["model"]
 
 
-def test_short_model_number_must_be_a_real_prefix() -> None:
+def test_short_model_number_must_be_a_fair_short_form() -> None:
     lg = TV.model_copy(update={"brand": "LG", "model": "43NU870BPLA"})
-    assert not match(lg, tv_listing("43NU885")).checks["model"]
-    assert not match(lg, tv_listing("43NU")).checks["model"]
+    for code in ["43NU885", "43NU"]:
+        listing = tv_listing(code)
+        listing.model_number_shortened = True
+        assert not match(lg, listing).checks["model"]
+
+
+def test_store_that_lists_full_model_numbers_must_match_exactly() -> None:
+    # Flipkart's K-55S25B is the 2024 BRAVIA 2, not the 2025 K-55S25BM2.
+    sony = TV.model_copy(update={"brand": "Sony", "model": "K-55S25BM2"})
+    assert not match(sony, tv_listing("K-55S25B")).checks["model"]
+
+
+def test_croma_short_code_with_letters_dropped() -> None:
+    sony = TV.model_copy(update={"brand": "Sony", "model": "K-55S25BM2"})
+    listing = tv_listing("55S25M2")
+    listing.model_number_shortened = True
+    assert match(sony, listing).checks["model"]
+
+
+def test_5g_phone_does_not_match_a_listing_without_5g() -> None:
+    redmi = SOURCE.model_copy(
+        update={
+            "title": "REDMI A7 Pro 5G (Black, 4GB, 64GB)",
+            "brand": "Redmi",
+            "model": "A7 Pro",
+            "attributes": {"ram": "4 GB", "storage": "64 GB"},
+        }
+    )
+    croma_4g = candidate("Redmi A7 Pro (4GB RAM, 64GB, Black)", ram="4 GB", storage="64 GB")
+    flipkart_5g = candidate("REDMI A7 Pro 5G (Mist Blue, 64 GB)", ram="4 GB", storage="64 GB")
+    assert match(redmi, croma_4g).reasons == [
+        "Network mismatch: the Amazon product is 5G, the listing does not say 5G"
+    ]
+    assert match(redmi, flipkart_5g).matched
+
+
+def test_shoe_listing_may_add_words_to_the_model() -> None:
+    shoe_ = SNEAKER.model_copy(
+        update={"title": "Nike Mens Revolution 8 Running Shoes", "model": "Revolution 8"}
+    )
+    for title in ["Nike Revolution 8 Men's Road Running Shoes", "NIKE Revolution 8 Running Shoes"]:
+        assert match(shoe_, shoe_listing(title, "White")).checks["model"], title
+
+
+def test_shoe_listing_must_keep_numbers_and_variants() -> None:
+    breaknet = SNEAKER.model_copy(
+        update={
+            "title": "adidas Womens Breaknet 3.0 Ikd Sneaker",
+            "brand": "adidas",
+            "model": "Breaknet 3.0 Ikd",
+        }
+    )
+    older = shoe_listing("ADIDAS Women BREAKNET 2.0 IKD Sneakers", "White", brand="ADIDAS")
+    assert not match(breaknet, older).checks["model"]
+    special = shoe_listing("Nike Air Max Bia SE Men's Shoes", "White")
+    assert not match(SNEAKER, special).checks["model"]
+
+
+def test_title_cut_at_dash_still_matches() -> None:
+    skechers = SNEAKER.model_copy(
+        update={
+            "title": "Skechers Women Uno Lite Lighter One Sneakers",
+            "brand": "Skechers",
+            "model": "Uno Lite Lighter One",
+            "attributes": {"colour": "MAUVE"},
+        }
+    )
+    listing = shoe_listing(
+        "Skechers UNO LITE - LIGHTER ONE Casual Shoes For Women", "Mauve", brand="Skechers"
+    )
+    assert match(skechers, listing).matched
+
+
+def test_unknown_brand_colour_names_match_on_the_main_colour_word() -> None:
+    alta = SNEAKER.model_copy(
+        update={
+            "title": "Nike Womens Court Vision Alta Sneakers",
+            "model": "Court Vision Alta",
+            "attributes": {"colour": "SHIMMER/LT COGNAC-SAIL"},
+        }
+    )
+    flipkart = shoe_listing("NIKE Court Vision Alta Sneakers For Women", "Shimmer")
+    myntra = shoe_listing("Nike Court Vision Alta Women's Shoes", "White")
+    assert match(alta, flipkart).matched
+    assert not match(alta, myntra).matched

@@ -92,8 +92,8 @@ def parse_product_page(html: str, url: str) -> Product:
     breadcrumbs = [
         a.get_text(strip=True) for a in soup.select("#wayfinding-breadcrumbs_feature_div a")
     ]
-    category = resolve_category(breadcrumbs, title)
     specs = read_specs(soup)
+    category = resolve_category(breadcrumbs, title, specs)
 
     brand = specs.get("brand") or read_byline_brand(soup) or title.split()[0]
     model = extract_model(category, title, brand, specs)
@@ -130,14 +130,18 @@ def small_image(url: str | None) -> str | None:
     return re.sub(r"\._[A-Z0-9_,]+_\.(jpg|jpeg|png|webp)$", r"._SL300_.\1", url)
 
 
-def resolve_category(breadcrumbs: list[str], title: str) -> Category:
+def resolve_category(breadcrumbs: list[str], title: str, specs: dict[str, str]) -> Category:
     for crumb in reversed(breadcrumbs):
         if category := CATEGORY_BREADCRUMBS.get(crumb.lower()):
             return category
     if breadcrumbs:
         raise ExtractionError(f"Unsupported category: {breadcrumbs[-1]}")
-    # Some pages have no breadcrumb; fall back to the title.
-    if "smartphone" in title.lower():
+    # Some pages have no breadcrumb (iPhones, for one): fall back to the spec table
+    # ("Operating System: iOS", "Generic Name: iPhone") and the title.
+    phone_hints = " ".join(
+        [title, specs.get("generic name", ""), specs.get("operating system", "")]
+    ).lower()
+    if re.search(r"\b(smartphone|iphone|ios|android)\b", phone_hints):
         return Category.SMARTPHONE
     raise ExtractionError("Could not tell which category this product belongs to")
 
@@ -184,10 +188,34 @@ def extract_model(category: Category, title: str, brand: str, specs: dict[str, s
     if category == Category.TELEVISION:
         # A TV is identified by its model number; names like "Crystal 4K" cover many sets.
         return specs.get("model number") or specs.get("item model number") or ""
-    if category in (Category.SNEAKER, Category.CLOTHING):
-        # Fashion titles are often generic ("Puma Men Polos"); the spec name is cleaner.
-        return specs.get("model name") or model_from_title(title, brand)
-    return model_from_title(title, brand)
+    from_title = model_from_title(title, brand)
+    # Amazon's "Model Name" for shoes and clothes is often a stock code or ends in a
+    # size ("M9166c-black-9", "IU1397", "ESS Logo Polo M"), which no store lists.
+    from_specs = readable_model_name(specs.get("model name", ""), title)
+    if category == Category.SNEAKER:
+        return from_title or from_specs
+    if category == Category.CLOTHING:
+        # Clothing titles are often generic ("Puma Men Polos"), so a readable spec name wins.
+        return from_specs or from_title
+    return from_title
+
+
+CODE_TOKEN = re.compile(r"(?=\S*\d\S*\d)(?=\S*[a-z])\S{5,}|\S*_\S*", re.I)
+SIZE_SUFFIX = re.compile(r"\s+(XXS|XS|S|M|L|XL|XXL|XXXL|[2-5]XL)$", re.I)
+
+
+def readable_model_name(name: str, title: str) -> str:
+    """The spec's model name if it reads like a name; '' if it is a stock code.
+
+    A trailing size ("ESS Logo Polo M") is dropped unless the title has the same word,
+    as in "adidas Men Drogo M Running Shoe".
+    """
+    name = name.strip()
+    size = SIZE_SUFFIX.search(name)
+    if size and size.group(1).lower() not in title.lower().split():
+        name = name[: size.start()]
+    first = name.split()[0] if name else ""
+    return "" if not first or CODE_TOKEN.fullmatch(first) else name
 
 
 def build_search_query(category: Category, title: str, brand: str, model: str) -> str:

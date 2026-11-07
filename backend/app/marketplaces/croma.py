@@ -73,6 +73,7 @@ def to_candidate(item: dict[str, Any]) -> Candidate:
         title=name,
         brand=item.get("manufacturer"),
         model_number=code.group(0) if code else None,
+        model_number_shortened=True,
         attributes=attributes,
         image_url=small_image(image),
         availability=availability_from_stock_locations(item.get("stockFlag")),

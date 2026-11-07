@@ -74,7 +74,7 @@ def test_sneaker_on_flipkart_needs_product_pages_for_colour() -> None:
     assert rank_matches(shoe, listings) == []  # no colour on search cards
     worth_opening = [c for c in listings if may_match(shoe, c)]
     assert worth_opening
-    assert all("Women" not in c.title and "Air Max Bia" in c.title for c in worth_opening)
+    assert all("Women" not in c.title and "air max bia" in c.title.lower() for c in worth_opening)
 
 
 def test_polo_on_myntra_with_abbreviated_model_name() -> None:

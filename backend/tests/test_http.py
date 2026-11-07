@@ -57,3 +57,11 @@ async def test_other_errors_stay_unexpected() -> None:
         with pytest.raises(FetchError) as exc:
             await fetch(client, "https://api.croma.com/x")
     assert exc.value.reason == FailureReason.UNEXPECTED
+
+
+async def test_rate_limit_is_retried_once() -> None:
+    answers = iter(
+        [httpx.Response(429, headers={"retry-after": "0"}), httpx.Response(200, text="ok")]
+    )
+    async with client_for(lambda request: next(answers)) as client:
+        assert (await fetch(client, "https://api.croma.com/x")).text == "ok"

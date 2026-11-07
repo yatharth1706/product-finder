@@ -58,7 +58,8 @@ COLOUR_FAMILIES = {
     "yellow": "yellow", "mustard": "yellow", "lemon": "yellow", "gold": "yellow",
     "orange": "orange", "rust": "orange", "coral": "orange",
     "brown": "brown", "tan": "brown", "chocolate": "brown", "coffee": "brown",
-    "mocha": "brown", "camel": "brown", "gum": "brown",
+    "mocha": "brown", "camel": "brown", "gum": "brown", "cognac": "brown", "hazel": "brown",
+    "sail": "white", "platinum": "grey",
     "beige": "beige", "sand": "beige", "khaki": "beige", "desert": "beige", "dust": "beige",
     "stone": "beige", "cream": "beige", "nude": "beige", "taupe": "beige",
     "multicolor": "multi", "multicolour": "multi", "multi": "multi",
@@ -67,6 +68,10 @@ COLOUR_FAMILIES = {
     "grefiv": "grey", "grefou": "grey", "grethr": "grey", "gretwo": "grey", "greone": "grey",
     "cgrani": "grey", "carbon": "grey", "silvmt": "grey", "conavy": "blue", "legink": "blue",
     "scarle": "red",
+    # Short colour codes several brands use (Skechers "MVE", "BKW", "NVY").
+    "blk": "black", "wht": "white", "gry": "grey", "nvy": "blue", "blu": "blue",
+    "grn": "green", "brn": "brown", "pnk": "pink", "mve": "purple", "lav": "purple",
+    "prp": "purple", "ylw": "yellow", "org": "orange", "slt": "grey", "char": "grey",
 }  # fmt: skip
 
 
@@ -134,6 +139,11 @@ def gender_of(title: str) -> str | None:
     return genders.pop() if genders else None
 
 
+def first_word(text: str) -> str:
+    words = normalize_text(text).split()
+    return words[0] if words else ""
+
+
 def colour_families(colour: str) -> list[str]:
     """Basic colours in order: 'WHITE/BLACK-WOLF GREY' -> ['white', 'black', 'grey']."""
     families: list[str] = []
@@ -148,13 +158,15 @@ def colours_match(expected: str, found: str) -> bool:
     """Same main colour, and the same set of colours when both sides list several.
 
     'White/Black-Wolf Grey' matches 'White' but not 'White/Emerald Green-Gum Brown'.
-    An unrecognised colour never matches anything except the identical text.
+    Colours with no known colour word match only on the same main colour word.
     """
     if normalize_text(expected) == normalize_text(found):
         return True
     expected_families, found_families = colour_families(expected), colour_families(found)
     if not expected_families or not found_families:
-        return False
+        # Brand colour names we do not know ("SHIMMER/LT COGNAC-SAIL" vs "Shimmer"):
+        # fall back to the same main colour word.
+        return first_word(expected) == first_word(found) != ""
     if expected_families[0] != found_families[0]:
         return False
     if len(expected_families) > 1 and len(found_families) > 1:

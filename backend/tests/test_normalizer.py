@@ -110,6 +110,8 @@ def test_colour_families() -> None:
         ("WHITE/BLACK-WOLF GREY", "Black", False),
         ("Volt", "Yellow", False),
         ("Volt", "VOLT", True),
+        ("MAUVE", "MVE", True),
+        ("Navy", "NVY", True),
     ],
 )
 def test_colours_match(expected: str, found: str, same: bool) -> None:

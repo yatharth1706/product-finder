@@ -79,6 +79,8 @@ class Candidate(BaseModel):
     # Set only when the marketplace gives the brand as a separate field.
     brand: str | None = None
     model_number: str | None = None
+    # True when the store lists a shortened model number (Croma: 43NU870 for 43NU870BPLA).
+    model_number_shortened: bool = False
     attributes: dict[str, str] = Field(default_factory=dict)
     image_url: str | None = None
     availability: Availability = Availability.UNKNOWN

@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 
 from app.config import settings
@@ -43,7 +45,11 @@ def make_client(
     )
 
 
-async def fetch(client: httpx.AsyncClient, url: str) -> httpx.Response:
+# One retry after "429 Too Many Requests", waiting as the store asks (capped).
+MAX_RETRY_WAIT_SECONDS = 3.0
+
+
+async def fetch(client: httpx.AsyncClient, url: str, retry: bool = True) -> httpx.Response:
     try:
         response = await client.get(url)
     except httpx.TimeoutException as exc:
@@ -51,6 +57,13 @@ async def fetch(client: httpx.AsyncClient, url: str) -> httpx.Response:
     except httpx.HTTPError as exc:
         raise FetchError(FailureReason.UNEXPECTED, f"{type(exc).__name__} for {url}") from exc
 
+    if response.status_code == 429 and retry:
+        try:
+            wait = float(response.headers.get("retry-after", 1))
+        except ValueError:
+            wait = 1.0
+        await asyncio.sleep(min(wait, MAX_RETRY_WAIT_SECONDS))
+        return await fetch(client, url, retry=False)
     if response.status_code >= 400:
         snippet = " ".join(response.text[:200].split())
         detail = f"HTTP {response.status_code} for {url}: {snippet}"
