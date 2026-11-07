@@ -75,7 +75,13 @@ affects the others.
    - Sneakers: every word of the model must appear in the listing's title, since
      stores add words ("Revolution 8 Road Running Shoes"). Numbers, variant words and
      gender (when both sides state one) must still be identical.
-   - Clothing names are mostly description ("Men Solid Polo Neck Pure Cotton Slim Fit
+   - Clothing: the assignment says brand, model and colour must match, but clothing
+     listings rarely name a model. Decision: for clothing, the "model" is the
+     identifying words of the name ("TIRO 23", "teamLIGA", "ESS Logo", "025"), and a
+     listing with no identifying words is not a match. A wrong product is worse than
+     a missed one: Flipkart's closest listing for the Man United 24/25 Home jersey
+     (adidas IU1397) is the 25/26 Fan jersey (KR2562), same colour, different product.
+     Clothing names are mostly description ("Men Solid Polo Neck Pure Cotton Slim Fit
      T-Shirt"). Description words, sizes and colours are dropped on both sides, and
      the identifying words left must be the same: "TIRO 23 JSY Printed" matches
      "TIRO 23", "ESS Logo Graphic" does not match "ESS Logo". Searches use those words

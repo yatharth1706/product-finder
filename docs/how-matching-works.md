@@ -91,6 +91,11 @@ like "5G" or "Smartphone".
 We are careful not to tidy away the important bits. "Pro", "Ultra", "Lite" and
 numbers like "24" or "25" always stay, because they make a toy different.
 
+Clothes are trickier: shops mostly describe them ("men's slim fit cotton round neck
+red T-shirt") instead of naming them. So for clothes, we throw away the describing
+words and keep the naming ones, like "TIRO 23" or "teamLIGA". Those must be the same.
+If a shirt has no naming words at all, we don't guess.
+
 ## Step 5: TVs have a secret code
 
 Lots of TVs have the same name, like *"Crystal 4K"*, but come in different
@@ -101,7 +106,7 @@ The code must be **the same**. `UA55UE85AHULXL` and `UA55UE83AHULXL` look almost
 the same, but they are different TVs, so we put that one back.
 
 Some shops write a shorter code, like `43NU870` for `43NU870BPLA`. That still counts,
-because the short code is the start of the long one. It's like writing your name
+as long as it keeps every number in the same order. It's like writing your name
 without your surname: still you.
 
 ## Step 6: Can you buy it?
