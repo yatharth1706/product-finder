@@ -54,6 +54,15 @@ def outcome(result: dict) -> str:
     return "skipped"
 
 
+def post_search(client: httpx.Client, api: str, asin: str) -> httpx.Response:
+    """The server may close an idle kept-alive connection between searches; retry once."""
+    payload = {"amazon_url": f"https://www.amazon.in/dp/{asin}"}
+    try:
+        return client.post(f"{api}/api/v1/search", json=payload)
+    except httpx.RemoteProtocolError:
+        return client.post(f"{api}/api/v1/search", json=payload)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", default="http://localhost:8000")
@@ -66,10 +75,7 @@ def main() -> None:
         for asin, label, expected in CASES:
             if only and asin not in only:
                 continue
-            response = client.post(
-                f"{args.api}/api/v1/search",
-                json={"amazon_url": f"https://www.amazon.in/dp/{asin}"},
-            )
+            response = post_search(client, args.api, asin)
             job = response.json()
             # Background mode: poll until the job finishes.
             while job.get("status") in ("pending", "processing"):

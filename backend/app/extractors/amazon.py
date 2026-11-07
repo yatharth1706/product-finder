@@ -50,9 +50,11 @@ ATTRIBUTE_LABELS = {
 
 def validate_amazon_url(url: str) -> str:
     url = url.strip()
+    if url and "://" not in url:
+        url = "https://" + url  # "amazon.in/dp/B0F7X5FC43" is a fine way to paste a link
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
-        raise InvalidUrlError("Enter a full Amazon product link starting with https://")
+        raise InvalidUrlError("That doesn't look like an Amazon product link")
     if not host_allowed(parts.hostname, AMAZON_HOSTS):
         raise InvalidUrlError("Only Amazon product links are supported")
     is_short_link = host_allowed(parts.hostname, SHORT_LINK_HOSTS)

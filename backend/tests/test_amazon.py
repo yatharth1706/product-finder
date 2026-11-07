@@ -20,10 +20,12 @@ URL = "https://www.amazon.in/dp/TEST"
         "https://www.amazon.in/Samsung-Galaxy/dp/B0DSKNQW8F/ref=sr_1_1?keywords=s25",
         "https://amazon.com/gp/product/B0DSKNQW8F",
         "https://amzn.in/d/abc123",
+        "amazon.in/dp/B0F7X5FC43",
+        "www.amazon.in/dp/B0F7X5FC43",
     ],
 )
 def test_accepts_amazon_product_urls(url: str) -> None:
-    assert validate_amazon_url(url)
+    assert validate_amazon_url(url).startswith("https://")
 
 
 @pytest.mark.parametrize(
@@ -34,6 +36,7 @@ def test_accepts_amazon_product_urls(url: str) -> None:
         "https://amazon.in.evil.com/dp/B0DSKNQW8F",
         "https://www.amazon.in/gp/bestsellers",
         "ftp://www.amazon.in/dp/B0DSKNQW8F",
+        "flipkart.com/dp/B0DSKNQW8F",
         "http://169.254.169.254/dp/B0DSKNQW8F",
     ],
 )

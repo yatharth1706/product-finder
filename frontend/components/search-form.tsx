@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { amazonUrlError } from "@/lib/validation";
+import { amazonUrlError, normalizeAmazonUrl } from "@/lib/validation";
 
 export interface Example {
   label: string;
@@ -30,7 +30,7 @@ export function SearchForm({
     event.preventDefault();
     const problem = amazonUrlError(url);
     setError(problem);
-    if (!problem) onSearch(url.trim());
+    if (!problem) onSearch(normalizeAmazonUrl(url));
   };
 
   return (
@@ -41,9 +41,11 @@ export function SearchForm({
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           id="amazon-url"
-          type="url"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
           inputMode="url"
-          placeholder="https://www.amazon.in/dp/..."
+          placeholder="amazon.in/dp/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
