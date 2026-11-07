@@ -63,7 +63,10 @@ affects the others.
      numbers, which must be identical (`K-55S25B`, the 2024 model, is not
      `K-55S25BM2`). Croma lists shortened ones (`43NU870` for `43NU870BPLA`,
      `55S25M2` for `K-55S25BM2`): accepted when the short code's characters appear
-     in order in the full one and all its digits are the same.
+     in order in the full one and all its digits are the same. When the short code
+     doesn't settle it (all three 43-inch Sony BRAVIA 2 II listings show "BRAVIA2"),
+     the product page is opened for the full model number (`K-43S25M2`,
+     `K-43S22BM2`, `K-43S22M2`).
    - Phones compare the model name from the title (after the brand, before the first
      bracket, separator or size). Filler words ("5G", "Galaxy", "Smartphone") are
      ignored, numbers and variant words (Pro, Ultra, Max, Lite, FE, ...) must be
@@ -107,7 +110,7 @@ affects the others.
 | Store | Search | Stock |
 |---|---|---|
 | Flipkart | Search page HTML (one card per listing); phone searches name RAM and storage. Fashion cards have no colour: it comes from the product page's schema.org data, and the same search with Flipkart's colour filter marks listings in the product's main colour, which are opened first and used as a fallback when a page is rate-limited. | From the search card: "Currently unavailable" is out of stock, a price is in stock. |
-| Croma | The search API Croma's website uses (query ending in `:relevance`). | `stockFlag`: the stores holding stock; empty means out of stock. |
+| Croma | The search API Croma's website uses (query ending in `:relevance`); product pages (`window.__INITIAL_DATA__`) for TVs' full model numbers. | `stockFlag`: the stores holding stock; empty means out of stock. |
 | Myntra | The search page's embedded results (`window.__myx`). Sneaker searches add "Shoes", which Myntra's search needs. | Stock per size: in stock if any size is available. |
 
 Search text is brand + model, except TVs, which use the start of the Amazon title
@@ -123,8 +126,6 @@ with every result. How each store responds from home and cloud connections is in
   Blue T-Shirt"), so clothing is usually `not_listed` on Flipkart.
 - Myntra search results give one main colour, so two colourways with the same main
   colour (white/black vs white/green) cannot be told apart there.
-- Croma's shortened model code is sometimes not a code at all (`BRAVIA2` for Sony's
-  `K-43S22M2`), so that TV is missed on Croma.
 - Clothing listings often carry no model name (Myntra's Levi's 025 is "Levis Men Soft
   Pure Cotton Round Neck Tshirt"), and stores do not show the brand's style code, so
   those tops are `not_listed`.
